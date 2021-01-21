@@ -85,8 +85,7 @@ mod tests {
     #[test]
     fn test_parse_weeks() {
         let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
-        let result = String::from("odd");
-        assert_eq!(parse_weeks(expression).unwrap(), result);
+        assert_eq!(parse_weeks(expression).unwrap(), WeekVariant::Odd);
     }
 }
 
@@ -102,6 +101,13 @@ impl fmt::Display for InvalidExpressionError {
 }
 
 impl Error for InvalidExpressionError {}
+
+#[derive(Debug, PartialEq)]
+enum WeekVariant {
+    Even,
+    Odd,
+    Multiple(Vec<String>),
+}
 
 fn parse_hours(expression: &str) -> Result<Vec<u8>> {
     let start = match expression.find("at") {
@@ -172,21 +178,42 @@ fn parse_weekdays(expression: &str) -> Result<Vec<u8>> {
     Ok(weekdays)
 }
 
-fn parse_weeks(expression: &str) -> Result<String> {
+fn parse_weeks(expression: &str) -> Result<WeekVariant> {
     let start = match expression.find("in") {
         Some(start_idx) => start_idx,
         None => return Err(InvalidExpressionError.into()),
     };
 
-    let result = match expression.find("weeks") {
-        Some(end_idx) => expression[start + 2..end_idx].trim(),
-        None => return Err(InvalidExpressionError.into()),
-    };
+    match expression.find("weeks") {
+        Some(end_idx) => {
+            let section = expression[start + 2..end_idx].trim();
 
-    match result {
-        "even" => Ok(result.to_string()),
-        "odd" => Ok(result.to_string()),
-        _ => return Err(InvalidExpressionError.into()),
+            match section {
+                "even" => Ok(WeekVariant::Even),
+                "odd" => Ok(WeekVariant::Odd),
+                _ => return Err(InvalidExpressionError.into()),
+            }
+        }
+        None => match expression.find("week") {
+            Some(end_idx) => {
+                let section = expression[start + 2..end_idx].trim();
+
+                let mut weeks = Vec::new();
+
+                for mut item in section.replace("and", ",").split(",") {
+                    item = item.trim();
+
+                    match item {
+                        "first" | "second" | "third" | "fourth" | "last" => {
+                            weeks.push(item.to_string())
+                        }
+                        _ => return Err(InvalidExpressionError.into()),
+                    }
+                }
+                Ok(WeekVariant::Multiple(weeks))
+            }
+            None => return Err(InvalidExpressionError.into()),
+        },
     }
 }
 
