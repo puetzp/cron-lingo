@@ -4,29 +4,27 @@ use time::OffsetDateTime;
 
 #[cfg(test)]
 mod tests {
-    use super::parse_section;
-    use super::Component;
-    use super::InvalidExpressionError;
+    use super::*;
 
     #[test]
-    fn test_parse_section_hours1() {
+    fn test_parse_hours1() {
         let expression = "at 6, 7, 8 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
         let result = vec![6, 7, 8, 14];
-        assert_eq!(parse_section(expression, Component::Hours).unwrap(), result);
+        assert_eq!(parse_hours(expression).unwrap(), result);
     }
 
     #[test]
-    fn test_parse_section_hours2() {
+    fn test_parse_hours2() {
         let expression = "at 6, 15 o'clock on Friday";
         let result = vec![6, 15];
-        assert_eq!(parse_section(expression, Component::Hours).unwrap(), result);
+        assert_eq!(parse_hours(expression).unwrap(), result);
     }
 
     #[test]
-    fn test_parse_section_hours_error1() {
+    fn test_parse_hours_for_error1() {
         let expression = "at 6, 15, 24 o'clock on Friday";
         assert_eq!(
-            *parse_section(expression, Component::Hours)
+            *parse_hours(expression)
                 .unwrap_err()
                 .downcast::<InvalidExpressionError>()
                 .unwrap(),
@@ -35,10 +33,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_section_hours_error2() {
+    fn test_parse_hours_for_error2() {
         let expression = "at 6, 15, 17 18 o'clock on Monday";
         assert_eq!(
-            *parse_section(expression, Component::Hours)
+            *parse_hours(expression)
                 .unwrap_err()
                 .downcast::<InvalidExpressionError>()
                 .unwrap(),
@@ -47,30 +45,24 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_section_weekdays1() {
+    fn test_parse_weekdays1() {
         let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
         let result = vec![0, 1, 4];
-        assert_eq!(
-            parse_section(expression, Component::Weekdays).unwrap(),
-            result
-        );
+        assert_eq!(parse_weekdays(expression).unwrap(), result);
     }
 
     #[test]
-    fn test_parse_section_weekdays2() {
+    fn test_parse_weekdays2() {
         let expression = "at 13 o'clock on Monday, Friday";
         let result = vec![1, 5];
-        assert_eq!(
-            parse_section(expression, Component::Weekdays).unwrap(),
-            result
-        );
+        assert_eq!(parse_weekdays(expression).unwrap(), result);
     }
 
     #[test]
-    fn test_parse_section_weekdays_error1() {
+    fn test_parse_weekdays_for_error1() {
         let expression = "at 16 o'clock on Monday and Thursd";
         assert_eq!(
-            *parse_section(expression, Component::Weekdays)
+            *parse_weekdays(expression)
                 .unwrap_err()
                 .downcast::<InvalidExpressionError>()
                 .unwrap(),
@@ -79,10 +71,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_section_weekdays_error2() {
+    fn test_parse_weekdays_for_error2() {
         let expression = "at 12 o'clock on Tuesday Saturday";
         assert_eq!(
-            *parse_section(expression, Component::Weekdays)
+            *parse_weekdays(expression)
                 .unwrap_err()
                 .downcast::<InvalidExpressionError>()
                 .unwrap(),
@@ -91,10 +83,10 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_section_weeks() {
+    fn test_parse_weeks() {
         let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
-        let result = vec![1];
-        assert_eq!(parse_section(expression, Component::Weeks).unwrap(), result);
+        let result = String::from("odd");
+        assert_eq!(parse_weeks(expression).unwrap(), result);
     }
 }
 
@@ -111,86 +103,97 @@ impl fmt::Display for InvalidExpressionError {
 
 impl Error for InvalidExpressionError {}
 
-enum Component {
-    Hours,
-    Weekdays,
-    Weeks,
-}
-
-fn parse_section(expression: &str, component: Component) -> Result<Vec<u8>> {
-    let comp_prefix = match component {
-        Component::Hours => "at",
-        Component::Weekdays => "on",
-        Component::Weeks => "in",
-    };
-
-    let comp_suffix = match component {
-        Component::Hours => "on",
-        Component::Weekdays => "in",
-        Component::Weeks => "weeks",
-    };
-
-    let start = match expression.find(comp_prefix) {
+fn parse_hours(expression: &str) -> Result<Vec<u8>> {
+    let start = match expression.find("at") {
         Some(start_idx) => start_idx,
         None => return Err(InvalidExpressionError.into()),
     };
 
-    let mut section = match expression.find(comp_suffix) {
+    let mut section = match expression.find("on") {
         Some(end_idx) => expression[start + 2..end_idx].trim(),
         None => expression[start + 2..].trim(),
     };
 
-    section = match component {
-        Component::Hours => match section.strip_suffix("o'clock") {
-            Some(stripped) => stripped,
-            None => return Err(InvalidExpressionError.into()),
-        },
-        _ => section,
+    section = match section.strip_suffix("o'clock") {
+        Some(stripped) => stripped,
+        None => return Err(InvalidExpressionError.into()),
     };
 
     let section = section.replace("and", ",");
 
-    let mut result = Vec::new();
+    let mut hours = Vec::new();
 
     for mut item in section.split(",") {
         item = item.trim();
 
-        match component {
-            Component::Hours => match item.parse::<u8>() {
-                Ok(num) => {
-                    if num < 24 {
-                        result.push(num);
-                    } else {
-                        return Err(InvalidExpressionError.into());
-                    }
+        match item.parse::<u8>() {
+            Ok(num) => {
+                if num < 24 {
+                    hours.push(num);
+                } else {
+                    return Err(InvalidExpressionError.into());
                 }
-                Err(_) => return Err(InvalidExpressionError.into()),
-            },
-            Component::Weekdays => match item {
-                "Sunday" => result.push(0),
-                "Monday" => result.push(1),
-                "Tuesday" => result.push(2),
-                "Wednesday" => result.push(3),
-                "Thursday" => result.push(4),
-                "Friday" => result.push(5),
-                "Saturday" => result.push(6),
-                _ => return Err(InvalidExpressionError.into()),
-            },
-            Component::Weeks => match item {
-                "even" => result.push(0),
-                "odd" => result.push(1),
-                _ => return Err(InvalidExpressionError.into()),
-            },
+            }
+            Err(_) => return Err(InvalidExpressionError.into()),
         }
     }
 
-    Ok(result)
+    Ok(hours)
+}
+
+fn parse_weekdays(expression: &str) -> Result<Vec<u8>> {
+    let start = match expression.find("on") {
+        Some(start_idx) => start_idx,
+        None => return Err(InvalidExpressionError.into()),
+    };
+
+    let section = match expression.find("in") {
+        Some(end_idx) => expression[start + 2..end_idx].trim(),
+        None => expression[start + 2..].trim(),
+    };
+
+    let mut weekdays = Vec::new();
+
+    for mut item in section.replace("and", ",").split(",") {
+        item = item.trim();
+
+        match item {
+            "Sunday" => weekdays.push(0),
+            "Monday" => weekdays.push(1),
+            "Tuesday" => weekdays.push(2),
+            "Wednesday" => weekdays.push(3),
+            "Thursday" => weekdays.push(4),
+            "Friday" => weekdays.push(5),
+            "Saturday" => weekdays.push(6),
+            _ => return Err(InvalidExpressionError.into()),
+        }
+    }
+
+    Ok(weekdays)
+}
+
+fn parse_weeks(expression: &str) -> Result<String> {
+    let start = match expression.find("in") {
+        Some(start_idx) => start_idx,
+        None => return Err(InvalidExpressionError.into()),
+    };
+
+    let result = match expression.find("weeks") {
+        Some(end_idx) => expression[start + 2..end_idx].trim(),
+        None => return Err(InvalidExpressionError.into()),
+    };
+
+    match result {
+        "even" => Ok(result.to_string()),
+        "odd" => Ok(result.to_string()),
+        _ => return Err(InvalidExpressionError.into()),
+    }
 }
 
 fn get_next(expression: &str, base: OffsetDateTime) -> Result<OffsetDateTime> {
-    let hours = parse_section(expression, Component::Hours);
-    let weekdays = parse_section(expression, Component::Weekdays);
-    let weeks = parse_section(expression, Component::Weeks);
+    let hours = parse_hours(expression);
+    let weekdays = parse_weekdays(expression);
+    let weeks = parse_weeks(expression);
     Ok(base)
 }
 
