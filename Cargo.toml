@@ -1,0 +1,8 @@
+[package]
+name = "cron-lingo"
+version = "0.1.0"
+authors = ["Peter Sebastian Pütz <peter.puetz@itenos.de>"]
+edition = "2018"
+
+[dependencies]
+time = "=0.2.22"
