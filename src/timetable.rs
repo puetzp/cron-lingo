@@ -35,6 +35,13 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_hours5() {
+        let expression = "at every hour";
+        let result: Vec<u8> = (0..24).collect();
+        assert_eq!(parse_hours(expression).unwrap(), result);
+    }
+
+    #[test]
     fn test_parse_hours_for_error1() {
         let expression = "at 6, 15, 24 o'clock on Friday";
         assert_eq!(
