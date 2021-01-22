@@ -1,6 +1,7 @@
 use crate::error::InvalidExpressionError;
 use std::error::Error;
 use std::str::FromStr;
+use time::OffsetDateTime;
 
 #[cfg(test)]
 mod tests {
@@ -8,7 +9,7 @@ mod tests {
 
     #[test]
     fn test_parse_hours1() {
-        let expression = "at 6, 7, 8 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
+        let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
         let result = vec![6, 7, 8, 14];
         assert_eq!(parse_hours(expression).unwrap(), result);
     }
@@ -66,8 +67,20 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_hours_for_error2() {
+        let expression = "at 6, 6, 15, 17 18 o'clock";
+        assert_eq!(
+            *parse_hours(expression)
+                .unwrap_err()
+                .downcast::<InvalidExpressionError>()
+                .unwrap(),
+            InvalidExpressionError
+        );
+    }
+
+    #[test]
     fn test_parse_weekdays1() {
-        let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
+        let expression = "at 6 o'clock on Sunday and Thursday and Monday in odd weeks";
         let result = vec![0, 1, 4];
         assert_eq!(parse_weekdays(expression).unwrap(), result);
     }
@@ -151,6 +164,12 @@ impl FromStr for Timetable {
     }
 }
 
+impl Timetable {
+    pub fn compute_next_date(self, base: OffsetDateTime) -> Result<OffsetDateTime, Box<dyn Error>> {
+        Ok(base)
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum WeekVariant {
     Even,
@@ -187,7 +206,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
         match item.parse::<u8>() {
             Ok(num) => {
-                if num < 24 {
+                if num < 24 && !hours.contains(&num) {
                     hours.push(num);
                 } else {
                     return Err(InvalidExpressionError.into());
@@ -196,6 +215,8 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
             Err(_) => return Err(InvalidExpressionError.into()),
         }
     }
+
+    hours.sort_unstable();
 
     Ok(hours)
 }
@@ -217,16 +238,60 @@ fn parse_weekdays(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         item = item.trim();
 
         match item {
-            "Sunday" => weekdays.push(0),
-            "Monday" => weekdays.push(1),
-            "Tuesday" => weekdays.push(2),
-            "Wednesday" => weekdays.push(3),
-            "Thursday" => weekdays.push(4),
-            "Friday" => weekdays.push(5),
-            "Saturday" => weekdays.push(6),
+            "Sunday" => {
+                if !weekdays.contains(&0) {
+                    weekdays.push(0);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Monday" => {
+                if !weekdays.contains(&1) {
+                    weekdays.push(1);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Tuesday" => {
+                if !weekdays.contains(&2) {
+                    weekdays.push(2);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Wednesday" => {
+                if !weekdays.contains(&3) {
+                    weekdays.push(3);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Thursday" => {
+                if !weekdays.contains(&4) {
+                    weekdays.push(4);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Friday" => {
+                if !weekdays.contains(&5) {
+                    weekdays.push(5);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
+            "Saturday" => {
+                if !weekdays.contains(&6) {
+                    weekdays.push(6);
+                } else {
+                    return Err(InvalidExpressionError.into());
+                }
+            }
             _ => return Err(InvalidExpressionError.into()),
         }
     }
+
+    weekdays.sort_unstable();
 
     Ok(weekdays)
 }

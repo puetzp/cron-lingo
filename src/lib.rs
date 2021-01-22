@@ -9,8 +9,8 @@ use time::OffsetDateTime;
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 fn get_next(expression: &str, base: OffsetDateTime) -> Result<OffsetDateTime> {
-    let _timetable = Timetable::from_str(expression)?;
-    Ok(base)
+    let timetable = Timetable::from_str(expression)?;
+    timetable.compute_next_date(base)
 }
 
 pub fn get_next_date(expression: &str) -> Result<OffsetDateTime> {
