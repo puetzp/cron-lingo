@@ -109,6 +109,19 @@ mod tests {
         let result = WeekVariant::Multiple(vec!["first".to_string(), "third".to_string()]);
         assert_eq!(parse_weeks(expression).unwrap(), result);
     }
+
+    #[test]
+    fn test_parse_weeks_for_error() {
+        let expression =
+            "at 6 o'clock on Sunday, Monday and Thursday in the first, third and odd week of the month";
+        assert_eq!(
+            *parse_weeks(expression)
+                .unwrap_err()
+                .downcast::<InvalidExpressionError>()
+                .unwrap(),
+            InvalidExpressionError
+        );
+    }
 }
 
 #[derive(Debug, PartialEq)]
