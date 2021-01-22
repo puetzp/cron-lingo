@@ -21,6 +21,20 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_hours3() {
+        let expression = "at every hour on Friday and Saturday";
+        let result: Vec<u8> = (0..24).collect();
+        assert_eq!(parse_hours(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_hours4() {
+        let expression = "at 12 o'clock";
+        let result = vec![12];
+        assert_eq!(parse_hours(expression).unwrap(), result);
+    }
+
+    #[test]
     fn test_parse_hours_for_error1() {
         let expression = "at 6, 15, 24 o'clock on Friday";
         assert_eq!(
@@ -134,6 +148,10 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         Some(end_idx) => expression[start + 2..end_idx].trim(),
         None => expression[start + 2..].trim(),
     };
+
+    if section == "every hour" {
+        return Ok((0..24).collect());
+    }
 
     section = match section.strip_suffix("o'clock") {
         Some(stripped) => stripped,
