@@ -166,6 +166,23 @@ impl FromStr for Timetable {
 
 impl Timetable {
     pub fn compute_next_date(self, base: OffsetDateTime) -> Result<OffsetDateTime, Box<dyn Error>> {
+        let this_weekday = base.weekday().number_days_from_sunday();
+
+        let (next_hour, next_day) = if self.weekdays.iter().any(|&x| x == this_weekday) {
+            match self.hours.iter().find(|&&x| x > base.hour()) {
+                Some(n) => (*n, this_weekday),
+                None => match self.weekdays.iter().find(|&&x| x > this_weekday) {
+                    Some(wd) => (self.hours[0], *wd),
+                    None => (self.hours[0], self.weekdays[0]),
+                },
+            }
+        } else {
+            match self.weekdays.iter().find(|&&x| x > this_weekday) {
+                Some(wd) => (self.hours[0], *wd),
+                None => (self.hours[0], self.weekdays[0]),
+            }
+        };
+
         Ok(base)
     }
 }
