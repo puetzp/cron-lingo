@@ -92,7 +92,7 @@ mod tests {
     fn test_parse_weeks2() {
         let expression =
             "at 6 o'clock on Sunday, Monday and Thursday in the first and third week of the month";
-        let result = WeekVariant::Multiple(vec!["first".to_string(), "last".to_string()]);
+        let result = WeekVariant::Multiple(vec!["first".to_string(), "third".to_string()]);
         assert_eq!(parse_weeks(expression).unwrap(), result);
     }
 }
@@ -194,14 +194,14 @@ fn parse_weekdays(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 }
 
 fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
-    let start = match expression.find("in") {
-        Some(start_idx) => start_idx,
-        None => return Err(InvalidExpressionError.into()),
-    };
-
     match expression.find("weeks") {
         Some(end_idx) => {
-            let section = expression[start + 2..end_idx].trim();
+            let start_idx = match expression.find("in") {
+                Some(start_idx) => start_idx,
+                None => return Err(InvalidExpressionError.into()),
+            };
+
+            let section = expression[start_idx + 2..end_idx].trim();
 
             match section {
                 "even" => Ok(WeekVariant::Even),
@@ -209,9 +209,14 @@ fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
                 _ => return Err(InvalidExpressionError.into()),
             }
         }
-        None => match expression.find("week") {
+        None => match expression.find("week of the month") {
             Some(end_idx) => {
-                let section = expression[start + 2..end_idx].trim();
+                let start_idx = match expression.find("in the") {
+                    Some(start_idx) => start_idx,
+                    None => return Err(InvalidExpressionError.into()),
+                };
+
+                let section = expression[start_idx + 6..end_idx].trim();
 
                 let mut weeks = Vec::new();
 
