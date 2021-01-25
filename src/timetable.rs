@@ -1,7 +1,8 @@
 use crate::error::InvalidExpressionError;
 use std::error::Error;
+use std::ops::Sub;
 use std::str::FromStr;
-use time::OffsetDateTime;
+use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
 #[cfg(test)]
 mod tests {
@@ -67,7 +68,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_hours_for_error2() {
+    fn test_parse_hours_for_error3() {
         let expression = "at 6, 6, 15, 17 18 o'clock";
         assert_eq!(
             *parse_hours(expression)
@@ -125,8 +126,8 @@ mod tests {
     #[test]
     fn test_parse_weeks2() {
         let expression =
-            "at 6 o'clock on Sunday, Monday and Thursday in the first and third week of the month";
-        let result = WeekVariant::Multiple(vec!["first".to_string(), "third".to_string()]);
+            "at 6 o'clock on Sunday, Monday and Thursday in the third and first week of the month";
+        let result = WeekVariant::Multiple(vec![Week::First, Week::Third]);
         assert_eq!(parse_weeks(expression).unwrap(), result);
     }
 
@@ -141,6 +142,71 @@ mod tests {
                 .unwrap(),
             InvalidExpressionError
         );
+    }
+
+    #[test]
+    fn test_compute_next_date1() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2020 - 04 - 14), time!(05:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![3, 9, 15, 21],
+            weekdays: vec![1, 4],
+            weeks: WeekVariant::Even,
+        };
+        let result = PrimitiveDateTime::new(date!(2020 - 04 - 16), time!(03:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_next_date2() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2020 - 04 - 30), time!(22:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![3, 9, 15, 21],
+            weekdays: vec![1, 3],
+            weeks: WeekVariant::Odd,
+        };
+        let result = PrimitiveDateTime::new(date!(2020 - 05 - 04), time!(03:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_next_date3() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2021 - 01 - 14), time!(16:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![6, 18],
+            weekdays: vec![1, 4],
+            weeks: WeekVariant::Multiple(vec![Week::First, Week::Third]),
+        };
+        let result = PrimitiveDateTime::new(date!(2021 - 01 - 14), time!(18:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_next_date4() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(12:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![6, 18],
+            weekdays: vec![3, 5],
+            weeks: WeekVariant::Multiple(vec![Week::Last]),
+        };
+        let result = PrimitiveDateTime::new(date!(2021 - 03 - 31), time!(06:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_next_date5() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(12:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![6, 18],
+            weekdays: vec![3, 5],
+            weeks: WeekVariant::Multiple(vec![Week::First]),
+        };
+        let result = PrimitiveDateTime::new(date!(2021 - 03 - 03), time!(06:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
     }
 }
 
@@ -164,11 +230,48 @@ impl FromStr for Timetable {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum WeekVariant {
+    Even,
+    Odd,
+    Multiple(Vec<Week>),
+}
+
+#[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
+enum Week {
+    First,
+    Second,
+    Third,
+    Fourth,
+    Last,
+}
+
+impl Sub for &Week {
+    type Output = u8;
+    fn sub(self, other: &Week) -> Self::Output {
+        let self_num = match self {
+            Week::First => 1,
+            Week::Second => 2,
+            Week::Third => 3,
+            Week::Fourth => 4,
+            Week::Last => 5,
+        };
+
+        match other {
+            Week::First => self_num - 1,
+            Week::Second => self_num - 2,
+            Week::Third => self_num - 3,
+            Week::Fourth => self_num - 4,
+            Week::Last => self_num - 5,
+        }
+    }
+}
+
 impl Timetable {
     pub fn compute_next_date(self, base: OffsetDateTime) -> Result<OffsetDateTime, Box<dyn Error>> {
         let this_weekday = base.weekday().number_days_from_sunday();
 
-        let (next_hour, next_day) = if self.weekdays.iter().any(|&x| x == this_weekday) {
+        let (next_hour, next_weekday) = if self.weekdays.iter().any(|&x| x == this_weekday) {
             match self.hours.iter().find(|&&x| x > base.hour()) {
                 Some(n) => (*n, this_weekday),
                 None => match self.weekdays.iter().find(|&&x| x > this_weekday) {
@@ -183,15 +286,67 @@ impl Timetable {
             }
         };
 
-        Ok(base)
-    }
-}
+        let next_time = Time::try_from_hms(next_hour, 0, 0)?;
 
-#[derive(Debug, PartialEq)]
-enum WeekVariant {
-    Even,
-    Odd,
-    Multiple(Vec<String>),
+        let day_addend = {
+            if this_weekday > next_weekday {
+                7 - this_weekday + next_weekday
+            } else {
+                next_weekday - this_weekday
+            }
+        };
+
+        let mut next_date = base.date() + Duration::days(day_addend.into());
+
+        match self.weeks {
+            WeekVariant::Even => {
+                if !next_date.week() % 2 == 0 {
+                    next_date += Duration::week();
+                }
+            }
+            WeekVariant::Odd => {
+                if next_date.week() % 2 == 0 {
+                    next_date += Duration::week();
+                }
+            }
+            WeekVariant::Multiple(weeks) => {
+                let days_from_sunday = next_date.weekday().number_days_from_sunday();
+
+                let this_week = if days_from_sunday >= next_date.day() {
+                    Week::First
+                } else {
+                    let last_sunday = (next_date - Duration::days(days_from_sunday as i64)).day();
+
+                    if last_sunday <= 7 {
+                        Week::Second
+                    } else if last_sunday > 7 && last_sunday <= 14 {
+                        Week::Third
+                    } else if last_sunday > 14 && last_sunday <= 21 {
+                        Week::Fourth
+                    } else {
+                        Week::Last
+                    }
+                };
+
+                if !weeks.contains(&this_week) {
+                    match weeks.iter().find(|&x| x > &this_week) {
+                        Some(w) => {
+                            let delta_to_next = w - &this_week;
+                            next_date += Duration::weeks(delta_to_next as i64);
+                        }
+                        None => {
+                            let next_week = &weeks[0];
+                        }
+                    };
+                }
+            }
+        }
+
+        let next_date_time =
+            PrimitiveDateTime::new(next_date, next_time).assume_offset(base.offset());
+
+        Ok(next_date_time)
+    }
 }
 
 fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
@@ -344,12 +499,15 @@ fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
                     item = item.trim();
 
                     match item {
-                        "first" | "second" | "third" | "fourth" | "last" => {
-                            weeks.push(item.to_string());
-                        }
+                        "first" => weeks.push(Week::First),
+                        "second" => weeks.push(Week::Second),
+                        "third" => weeks.push(Week::Third),
+                        "fourth" => weeks.push(Week::Fourth),
+                        "last" => weeks.push(Week::Last),
                         _ => return Err(InvalidExpressionError.into()),
                     }
                 }
+                weeks.sort();
                 Ok(WeekVariant::Multiple(weeks))
             }
             None => return Err(InvalidExpressionError.into()),
