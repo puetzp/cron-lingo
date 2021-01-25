@@ -234,6 +234,32 @@ mod tests {
         let result = PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(06:00:00)).assume_utc();
         assert_eq!(timetable.compute_next_date(base).unwrap(), result);
     }
+
+    #[test]
+    fn test_compute_next_date8() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(21:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![6, 18],
+            weekdays: vec![0],
+            weeks: WeekVariant::Multiple(vec![Week::First]),
+        };
+        let result = PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(06:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_next_date9() {
+        use time::{date, time};
+        let base = PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(21:00:00)).assume_utc();
+        let timetable = Timetable {
+            hours: vec![6, 18],
+            weekdays: vec![0],
+            weeks: WeekVariant::Multiple(vec![Week::First, Week::Fourth]),
+        };
+        let result = PrimitiveDateTime::new(date!(2021 - 07 - 25), time!(06:00:00)).assume_utc();
+        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+    }
 }
 
 #[derive(Debug, PartialEq)]
