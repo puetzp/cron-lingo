@@ -161,18 +161,16 @@ pub struct Timetable {
 
 impl Timetable {
     pub fn new(expression: &str) -> Result<Self, Box<dyn Error>> {
-        let mut timetable = Timetable::from_str(expression)?;
-        timetable.base = Some(OffsetDateTime::try_now_local()?);
-        Ok(timetable)
+        Timetable::from_str(expression)
     }
 }
 
 impl FromStr for Timetable {
-    type Err = InvalidExpressionError;
+    type Err = Box<dyn Error>;
 
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Timetable {
-            base: None,
+            base: Some(OffsetDateTime::try_now_local()?),
             hours: parse_hours(expression)?,
             weekdays: parse_weekdays(expression)?,
             weeks: parse_weeks(expression)?,
