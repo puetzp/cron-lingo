@@ -1,4 +1,7 @@
-use crate::error::InvalidExpressionError;
+use crate::error::{
+    DuplicateInputError, HoursOutOfBoundsError, InvalidExpressionError, InvalidWeekSpecError,
+    InvalidWeekdaySpecError,
+};
 use std::error::Error;
 use std::iter::Iterator;
 use std::str::FromStr;
@@ -292,10 +295,12 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
         match item.parse::<u8>() {
             Ok(num) => {
-                if num < 24 && !hours.contains(&num) {
-                    hours.push(num);
+                if hours.contains(&num) {
+                    return Err(DuplicateInputError.into());
+                } else if !(0..=23).contains(&num) {
+                    return Err(HoursOutOfBoundsError.into());
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    hours.push(num);
                 }
             }
             Err(_) => return Err(InvalidExpressionError.into()),
@@ -328,52 +333,52 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
                 if !weekdays.contains(&0) {
                     weekdays.push(0);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Monday" => {
                 if !weekdays.contains(&1) {
                     weekdays.push(1);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Tuesday" => {
                 if !weekdays.contains(&2) {
                     weekdays.push(2);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Wednesday" => {
                 if !weekdays.contains(&3) {
                     weekdays.push(3);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Thursday" => {
                 if !weekdays.contains(&4) {
                     weekdays.push(4);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Friday" => {
                 if !weekdays.contains(&5) {
                     weekdays.push(5);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
             "Saturday" => {
                 if !weekdays.contains(&6) {
                     weekdays.push(6);
                 } else {
-                    return Err(InvalidExpressionError.into());
+                    return Err(DuplicateInputError.into());
                 }
             }
-            _ => return Err(InvalidExpressionError.into()),
+            _ => return Err(InvalidWeekdaySpecError.into()),
         }
     }
 
@@ -395,7 +400,7 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> 
             match section {
                 "even" => Ok(Some(WeekVariant::Even)),
                 "odd" => Ok(Some(WeekVariant::Odd)),
-                _ => Err(InvalidExpressionError.into()),
+                _ => Err(InvalidWeekSpecError.into()),
             }
         }
         None => Ok(None),
