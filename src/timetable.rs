@@ -9,17 +9,48 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_hours1() {
+    fn test_complete_timetable() {
         let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
-        let result = vec![6, 7, 8, 14];
-        assert_eq!(parse_hours(expression).unwrap(), result);
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, vec!(6, 7, 8, 14));
+        assert_eq!(timetable.weekdays, Some(vec!(1, 4, 6)));
+        assert_eq!(timetable.weeks, Some(WeekVariant::Even));
     }
 
     #[test]
-    fn test_parse_hours2() {
+    fn test_timetable_without_week_spec() {
         let expression = "at 6, 15 o'clock on Friday";
-        let result = vec![6, 15];
-        assert_eq!(parse_hours(expression).unwrap(), result);
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, vec!(6, 15));
+        assert_eq!(timetable.weekdays, Some(vec!(5)));
+        assert_eq!(timetable.weeks, None);
+    }
+
+    #[test]
+    fn test_timetable_hours_only() {
+        let expression = "at 6, 23 o'clock";
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, vec!(6, 23));
+        assert_eq!(timetable.weekdays, None);
+        assert_eq!(timetable.weeks, None);
+    }
+
+    #[test]
+    fn test_timetable_every_hour() {
+        let expression = "at every hour";
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, (0..=23).collect::<Vec<u8>>());
+        assert_eq!(timetable.weekdays, None);
+        assert_eq!(timetable.weeks, None);
+    }
+
+    #[test]
+    fn test_timetable_without_weekday_spec() {
+        let expression = "at 6, 23 o'clock in odd weeks";
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, vec!(6, 23));
+        assert_eq!(timetable.weekdays, None);
+        assert_eq!(timetable.weeks, Some(WeekVariant::Odd));
     }
 
     #[test]
@@ -149,6 +180,29 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_timetable3() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 01 - 17), time!(08:24:47)).assume_utc(),
+            hours: vec![6, 12],
+            weekdays: None,
+            weeks: Some(WeekVariant::Even),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 01 - 17), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 01 - 25), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 01 - 25), time!(12:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -265,9 +319,12 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
         None => return Err(InvalidExpressionError.into()),
     };
 
-    let mut section = match expression.find("on") {
-        Some(end_idx) => expression[start + 2..end_idx].trim(),
-        None => expression[start + 2..].trim(),
+    let mut section = if let Some(end_idx) = expression.find("on") {
+        expression[start + 2..end_idx].trim()
+    } else if let Some(end_idx) = expression.find("in") {
+        expression[start + 2..end_idx].trim()
+    } else {
+        expression[start + 2..].trim()
     };
 
     if section == "every hour" {
