@@ -45,37 +45,19 @@ mod tests {
     #[test]
     fn test_parse_hours_for_error1() {
         let expression = "at 6, 15, 24 o'clock on Friday";
-        assert_eq!(
-            *parse_hours(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        assert!(parse_hours(expression).is_err());
     }
 
     #[test]
     fn test_parse_hours_for_error2() {
         let expression = "at 6, 15, 17 18 o'clock on Monday";
-        assert_eq!(
-            *parse_hours(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        assert!(parse_hours(expression).is_err());
     }
 
     #[test]
     fn test_parse_hours_for_error3() {
         let expression = "at 6, 6, 15, 17 18 o'clock";
-        assert_eq!(
-            *parse_hours(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        assert!(parse_hours(expression).is_err());
     }
 
     #[test]
@@ -95,52 +77,25 @@ mod tests {
     #[test]
     fn test_parse_weekdays_for_error1() {
         let expression = "at 16 o'clock on Monday and Thursd";
-        assert_eq!(
-            *parse_weekdays(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        assert!(parse_weekdays(expression).is_err());
     }
 
     #[test]
     fn test_parse_weekdays_for_error2() {
         let expression = "at 12 o'clock on Tuesday Saturday";
-        assert_eq!(
-            *parse_weekdays(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        assert!(parse_weekdays(expression).is_err());
     }
 
     #[test]
-    fn test_parse_weeks1() {
+    fn test_parse_weeks() {
         let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
         assert_eq!(parse_weeks(expression).unwrap(), WeekVariant::Odd);
     }
 
     #[test]
-    fn test_parse_weeks2() {
-        let expression =
-            "at 6 o'clock on Sunday, Monday and Thursday in the third and first week of the month";
-        let result = WeekVariant::Multiple(vec![Week::First, Week::Third]);
-        assert_eq!(parse_weeks(expression).unwrap(), result);
-    }
-
-    #[test]
     fn test_parse_weeks_for_error() {
-        let expression =
-            "at 6 o'clock on Sunday, Monday and Thursday in the first, third and odd week of the month";
-        assert_eq!(
-            *parse_weeks(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
-        );
+        let expression = "at 6 o'clock on Sunday, Monday and Thursday in even and odd weeks";
+        assert!(parse_weeks(expression).is_err());
     }
 
     #[test]
