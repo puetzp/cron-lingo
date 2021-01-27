@@ -1,5 +1,6 @@
 use crate::error::InvalidExpressionError;
 use std::error::Error;
+use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
@@ -127,9 +128,18 @@ mod tests {
 
 #[derive(Debug, PartialEq)]
 pub struct Timetable {
+    base: Option<OffsetDateTime>,
     hours: Vec<u8>,
     weekdays: Vec<u8>,
     weeks: WeekVariant,
+}
+
+impl Timetable {
+    pub fn new(expression: &str) -> Result<Self, Box<dyn Error>> {
+        let mut timetable = Timetable::from_str(expression)?;
+        timetable.base = Some(OffsetDateTime::try_now_local()?);
+        Ok(timetable)
+    }
 }
 
 impl FromStr for Timetable {
@@ -137,6 +147,7 @@ impl FromStr for Timetable {
 
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Timetable {
+            base: None,
             hours: parse_hours(expression)?,
             weekdays: parse_weekdays(expression)?,
             weeks: parse_weeks(expression)?,
@@ -145,14 +156,15 @@ impl FromStr for Timetable {
     }
 }
 
-#[derive(Debug, PartialEq)]
-enum WeekVariant {
-    Even,
-    Odd,
-}
+impl Iterator for Timetable {
+    type Item = OffsetDateTime;
 
-impl Timetable {
-    pub fn compute_next_date(self, base: OffsetDateTime) -> Result<OffsetDateTime, Box<dyn Error>> {
+    fn next(&mut self) -> Option<Self::Item> {
+        let base = match self.base {
+            Some(date) => date,
+            None => OffsetDateTime::try_now_local().unwrap(),
+        };
+
         let this_weekday = base.weekday().number_days_from_sunday();
 
         let (next_hour, next_weekday) = if self.weekdays.iter().any(|&x| x == this_weekday) {
@@ -170,7 +182,7 @@ impl Timetable {
             }
         };
 
-        let next_time = Time::try_from_hms(next_hour, 0, 0)?;
+        let next_time = Time::try_from_hms(next_hour, 0, 0).unwrap();
 
         let day_addend = {
             if this_weekday > next_weekday {
@@ -198,8 +210,16 @@ impl Timetable {
         let next_date_time =
             PrimitiveDateTime::new(next_date, next_time).assume_offset(base.offset());
 
-        Ok(next_date_time)
+        self.base = Some(next_date_time);
+
+        Some(next_date_time)
     }
+}
+
+#[derive(Debug, PartialEq)]
+enum WeekVariant {
+    Even,
+    Odd,
 }
 
 fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
