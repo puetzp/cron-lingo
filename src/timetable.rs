@@ -65,14 +65,14 @@ mod tests {
     fn test_parse_weekdays1() {
         let expression = "at 6 o'clock on Sunday and Thursday and Monday in odd weeks";
         let result = vec![0, 1, 4];
-        assert_eq!(parse_weekdays(expression).unwrap(), result);
+        assert_eq!(parse_weekdays(expression).unwrap(), Some(result));
     }
 
     #[test]
     fn test_parse_weekdays2() {
         let expression = "at 13 o'clock on Monday, Friday";
         let result = vec![1, 5];
-        assert_eq!(parse_weekdays(expression).unwrap(), result);
+        assert_eq!(parse_weekdays(expression).unwrap(), Some(result));
     }
 
     #[test]
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_parse_weeks() {
         let expression = "at 6 o'clock on Sunday, Monday and Thursday in odd weeks";
-        assert_eq!(parse_weeks(expression).unwrap(), WeekVariant::Odd);
+        assert_eq!(parse_weeks(expression).unwrap(), Some(WeekVariant::Odd));
     }
 
     #[test]
@@ -103,10 +103,10 @@ mod tests {
     fn test_timetable1() {
         use time::{date, time};
         let timetable = Timetable {
-            base: Some(PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(15:00:00)).assume_utc()),
+            base: PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(15:00:00)).assume_utc(),
             hours: vec![6, 18],
-            weekdays: vec![1, 3],
-            weeks: WeekVariant::Even,
+            weekdays: Some(vec![1, 3]),
+            weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
             PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(18:00:00)).assume_utc(),
@@ -128,10 +128,10 @@ mod tests {
     fn test_timetable2() {
         use time::{date, time};
         let timetable = Timetable {
-            base: Some(PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc()),
+            base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
             hours: vec![12],
-            weekdays: vec![0, 5],
-            weeks: WeekVariant::Even,
+            weekdays: Some(vec![0, 5]),
+            weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
             PrimitiveDateTime::new(date!(2021 - 02 - 26), time!(12:00:00)).assume_utc(),
