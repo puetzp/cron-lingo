@@ -153,10 +153,10 @@ mod tests {
 
 #[derive(Debug, PartialEq)]
 pub struct Timetable {
-    base: Option<OffsetDateTime>,
+    base: OffsetDateTime,
     hours: Vec<u8>,
-    weekdays: Vec<u8>,
-    weeks: WeekVariant,
+    weekdays: Option<Vec<u8>>,
+    weeks: Option<WeekVariant>,
 }
 
 impl Timetable {
@@ -170,7 +170,7 @@ impl FromStr for Timetable {
 
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Timetable {
-            base: Some(OffsetDateTime::try_now_local()?),
+            base: OffsetDateTime::try_now_local()?,
             hours: parse_hours(expression)?,
             weekdays: parse_weekdays(expression)?,
             weeks: parse_weeks(expression)?,
@@ -183,57 +183,71 @@ impl Iterator for Timetable {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let base = match self.base {
-            Some(date) => date,
-            None => OffsetDateTime::try_now_local().unwrap(),
-        };
+        let (mut next_date, next_time) = match &self.weekdays {
+            Some(weekdays) => {
+                let this_weekday = self.base.weekday().number_days_from_sunday();
 
-        let this_weekday = base.weekday().number_days_from_sunday();
+                let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
+                    match self.hours.iter().find(|&&x| x > self.base.hour()) {
+                        Some(n) => (*n, this_weekday),
+                        None => match weekdays.iter().find(|&&x| x > this_weekday) {
+                            Some(wd) => (self.hours[0], *wd),
+                            None => (self.hours[0], weekdays[0]),
+                        },
+                    }
+                } else {
+                    match weekdays.iter().find(|&&x| x > this_weekday) {
+                        Some(wd) => (self.hours[0], *wd),
+                        None => (self.hours[0], weekdays[0]),
+                    }
+                };
 
-        let (next_hour, next_weekday) = if self.weekdays.iter().any(|&x| x == this_weekday) {
-            match self.hours.iter().find(|&&x| x > base.hour()) {
-                Some(n) => (*n, this_weekday),
-                None => match self.weekdays.iter().find(|&&x| x > this_weekday) {
-                    Some(wd) => (self.hours[0], *wd),
-                    None => (self.hours[0], self.weekdays[0]),
-                },
+                let next_time = Time::try_from_hms(next_hour, 0, 0).unwrap();
+
+                let day_addend = {
+                    if this_weekday > next_weekday {
+                        7 - this_weekday + next_weekday
+                    } else {
+                        next_weekday - this_weekday
+                    }
+                };
+
+                let next_date = self.base.date() + Duration::days(day_addend.into());
+
+                (next_date, next_time)
             }
-        } else {
-            match self.weekdays.iter().find(|&&x| x > this_weekday) {
-                Some(wd) => (self.hours[0], *wd),
-                None => (self.hours[0], self.weekdays[0]),
-            }
-        };
-
-        let next_time = Time::try_from_hms(next_hour, 0, 0).unwrap();
-
-        let day_addend = {
-            if this_weekday > next_weekday {
-                7 - this_weekday + next_weekday
-            } else {
-                next_weekday - this_weekday
-            }
-        };
-
-        let mut next_date = base.date() + Duration::days(day_addend.into());
-
-        match self.weeks {
-            WeekVariant::Even => {
-                if !next_date.week() % 2 == 0 {
-                    next_date += Duration::week();
+            None => match self.hours.iter().find(|&&x| x > self.base.hour()) {
+                Some(h) => {
+                    let next_time = Time::try_from_hms(*h, 0, 0).unwrap();
+                    (self.base.date(), next_time)
                 }
-            }
-            WeekVariant::Odd => {
-                if next_date.week() % 2 == 0 {
-                    next_date += Duration::week();
+                None => {
+                    let next_time = Time::try_from_hms(self.hours[0], 0, 0).unwrap();
+                    let next_date = self.base.date() + Duration::day();
+                    (next_date, next_time)
+                }
+            },
+        };
+
+        if let Some(weeks) = &self.weeks {
+            match weeks {
+                WeekVariant::Even => {
+                    if !next_date.week() % 2 == 0 {
+                        next_date += Duration::week();
+                    }
+                }
+                WeekVariant::Odd => {
+                    if next_date.week() % 2 == 0 {
+                        next_date += Duration::week();
+                    }
                 }
             }
         }
 
         let next_date_time =
-            PrimitiveDateTime::new(next_date, next_time).assume_offset(base.offset());
+            PrimitiveDateTime::new(next_date, next_time).assume_offset(self.base.offset());
 
-        self.base = Some(next_date_time);
+        self.base = next_date_time;
 
         Some(next_date_time)
     }
@@ -289,10 +303,10 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(hours)
 }
 
-fn parse_weekdays(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
     let start = match expression.find("on") {
         Some(start_idx) => start_idx,
-        None => return Err(InvalidExpressionError.into()),
+        None => return Ok(None),
     };
 
     let section = match expression.find("in") {
@@ -361,10 +375,10 @@ fn parse_weekdays(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
     weekdays.sort_unstable();
 
-    Ok(weekdays)
+    Ok(Some(weekdays))
 }
 
-fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
+fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> {
     match expression.find("weeks") {
         Some(end_idx) => {
             let start_idx = match expression.find("in") {
@@ -375,11 +389,11 @@ fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
             let section = expression[start_idx + 2..end_idx].trim();
 
             match section {
-                "even" => Ok(WeekVariant::Even),
-                "odd" => Ok(WeekVariant::Odd),
+                "even" => Ok(Some(WeekVariant::Even)),
+                "odd" => Ok(Some(WeekVariant::Odd)),
                 _ => Err(InvalidExpressionError.into()),
             }
         }
-        None => Err(InvalidExpressionError.into()),
+        None => Ok(None),
     }
 }
