@@ -271,7 +271,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
     let mut hours = Vec::new();
 
-    for mut item in section.split(",") {
+    for mut item in section.split(',') {
         item = item.trim();
 
         match item.parse::<u8>() {
@@ -304,7 +304,7 @@ fn parse_weekdays(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
     let mut weekdays = Vec::new();
 
-    for mut item in section.replace("and", ",").split(",") {
+    for mut item in section.replace("and", ",").split(',') {
         item = item.trim();
 
         match item {
@@ -379,9 +379,9 @@ fn parse_weeks(expression: &str) -> Result<WeekVariant, Box<dyn Error>> {
             match section {
                 "even" => Ok(WeekVariant::Even),
                 "odd" => Ok(WeekVariant::Odd),
-                _ => return Err(InvalidExpressionError.into()),
+                _ => Err(InvalidExpressionError.into()),
             }
         }
-        None => return Err(InvalidExpressionError.into()),
+        None => Err(InvalidExpressionError.into()),
     }
 }
