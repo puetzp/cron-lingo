@@ -102,27 +102,27 @@ mod tests {
     #[test]
     fn test_compute_next_date1() {
         use time::{date, time};
-        let base = PrimitiveDateTime::new(date!(2020 - 04 - 14), time!(05:00:00)).assume_utc();
-        let timetable = Timetable {
+        let mut timetable = Timetable {
+            base: Some(PrimitiveDateTime::new(date!(2020 - 04 - 14), time!(05:00:00)).assume_utc()),
             hours: vec![3, 9, 15, 21],
             weekdays: vec![1, 4],
             weeks: WeekVariant::Even,
         };
         let result = PrimitiveDateTime::new(date!(2020 - 04 - 16), time!(03:00:00)).assume_utc();
-        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+        assert_eq!(timetable.next().unwrap(), result);
     }
 
     #[test]
     fn test_compute_next_date2() {
         use time::{date, time};
-        let base = PrimitiveDateTime::new(date!(2020 - 04 - 30), time!(22:00:00)).assume_utc();
-        let timetable = Timetable {
+        let mut timetable = Timetable {
+            base: Some(PrimitiveDateTime::new(date!(2020 - 04 - 30), time!(22:00:00)).assume_utc()),
             hours: vec![3, 9, 15, 21],
             weekdays: vec![1, 3],
             weeks: WeekVariant::Odd,
         };
         let result = PrimitiveDateTime::new(date!(2020 - 05 - 04), time!(03:00:00)).assume_utc();
-        assert_eq!(timetable.compute_next_date(base).unwrap(), result);
+        assert_eq!(timetable.next().unwrap(), result);
     }
 }
 
