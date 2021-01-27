@@ -100,7 +100,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_next_date1() {
+    fn test_timetable1() {
         use time::{date, time};
         let mut timetable = Timetable {
             base: Some(PrimitiveDateTime::new(date!(2020 - 04 - 14), time!(05:00:00)).assume_utc()),
@@ -113,7 +113,7 @@ mod tests {
     }
 
     #[test]
-    fn test_compute_next_date2() {
+    fn test_timetable2() {
         use time::{date, time};
         let mut timetable = Timetable {
             base: Some(PrimitiveDateTime::new(date!(2020 - 04 - 30), time!(22:00:00)).assume_utc()),
@@ -123,6 +123,31 @@ mod tests {
         };
         let result = PrimitiveDateTime::new(date!(2020 - 05 - 04), time!(03:00:00)).assume_utc();
         assert_eq!(timetable.next().unwrap(), result);
+    }
+
+    #[test]
+    fn test_timetable3() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: Some(PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(15:00:00)).assume_utc()),
+            hours: vec![6, 18],
+            weekdays: vec![1, 3],
+            weeks: WeekVariant::Even,
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 02 - 10), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 02 - 10), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(5)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
     }
 }
 
