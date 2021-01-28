@@ -26,6 +26,7 @@
 //! | at 7 and 8 o'clock     | on Tuesday, Saturday  | in even weeks   |
 //! | at 7, 8 and 16 o'clock | on Friday             |                 |
 //! | at 6, 12, 18 o'clock   |                       |                 |
+//! | at 8 o'clock           |                       | in odd weeks    |
 pub mod error;
 pub mod timetable;
 
