@@ -182,6 +182,7 @@ mod tests {
     }
 }
 
+// This HashMap is just used to simplify the parse_weekdays function.
 lazy_static::lazy_static! {
     static ref WEEKDAY_MAPPING: HashMap<&'static str, u8> = {
         let mut t = HashMap::new();
@@ -319,6 +320,9 @@ enum WeekVariant {
     Odd,
 }
 
+// Parse the hour spec of an expression and return a sorted list.
+// Determine the start end end bounds of the relevant part, parse
+// each comma-separated value and add them to a vector.
 fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     let start = match expression.find("at") {
         Some(start_idx) => start_idx,
@@ -368,6 +372,10 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
     Ok(hours)
 }
 
+// Parse the weekday spec of an epression and return a sorted list.
+// Determine the start and end bounds of the relevant part, parse
+// each comma-separated value, map it to a corresponding integer
+// and add it to a vector.
 fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
     let start = match expression.find("on") {
         Some(start_idx) => start_idx,
@@ -406,6 +414,10 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
     Ok(Some(weekdays))
 }
 
+// Parse the week spec of an expression and return a WeekVariant.
+// After determining the start and end bounds, the value in between
+// is attempted to be matched. If the value is supported, it is mapped
+// to a WeekVariant.
 fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> {
     match expression.find("weeks") {
         Some(end_idx) => {
