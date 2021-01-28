@@ -1,7 +1,7 @@
 [package]
 name = "cron-lingo"
 version = "0.1.0"
-authors = ["Peter Sebastian Pütz <peter.puetz@itenos.de>"]
+authors = ["Peter Sebastian Pütz <ppuetz@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
