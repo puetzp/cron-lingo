@@ -205,6 +205,15 @@ pub struct Timetable {
 }
 
 impl Timetable {
+    /// Attempt to create a new `Timetable` object from an expression.
+    /// Check the module-level documentation for the proper syntax.
+    ///
+    /// ```rust
+    /// use cron_lingo::Timetable;
+    ///
+    /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
+    /// assert!(Timetable::new(expr).is_ok());
+    /// ```
     pub fn new(expression: &str) -> Result<Self, Box<dyn Error>> {
         Timetable::from_str(expression)
     }
