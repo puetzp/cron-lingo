@@ -196,6 +196,13 @@ lazy_static::lazy_static! {
     };
 }
 
+/// A timetable that is built from an expression and can be iterated over
+/// in order to compute the next date(s) that match the specification.
+/// This is the only way (at this point) to use `Timetable` in a meaningful
+/// way.
+///
+/// The expression must adhere to a specific syntax. See the module-level
+/// documentation for the full range of possibilities.
 #[derive(Debug, PartialEq)]
 pub struct Timetable {
     base: OffsetDateTime,
@@ -206,7 +213,6 @@ pub struct Timetable {
 
 impl Timetable {
     /// Attempt to create a new `Timetable` object from an expression.
-    /// Check the module-level documentation for the proper syntax.
     ///
     /// ```rust
     /// use cron_lingo::Timetable;

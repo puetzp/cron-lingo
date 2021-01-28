@@ -1,6 +1,8 @@
 use std::error::Error;
 use std::fmt;
 
+/// An error that is returned when an expression cannot be parsed and
+/// none of the more specific error types covers this case.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct InvalidExpressionError;
 
@@ -18,6 +20,8 @@ impl From<Box<dyn Error>> for InvalidExpressionError {
     }
 }
 
+/// This error indicates that the hour spec of an expression contains
+/// invalid input that is not within the range of `(0..=23)`.
 #[derive(Debug, Clone, PartialEq)]
 pub struct HoursOutOfBoundsError {
     pub input: u8,
@@ -25,12 +29,14 @@ pub struct HoursOutOfBoundsError {
 
 impl fmt::Display for HoursOutOfBoundsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "at least one value in the expression is out of range, must be between 0 and 23 inclusivelyi, is {}", self.input)
+        write!(f, "at least one value in the expression is out of range, must be between 0 and 23 inclusively, is {}", self.input)
     }
 }
 
 impl Error for HoursOutOfBoundsError {}
 
+/// This error points to duplicates in the expression, e.g. multiple
+/// occurrences of the same weekday.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DuplicateInputError;
 
@@ -42,6 +48,8 @@ impl fmt::Display for DuplicateInputError {
 
 impl Error for DuplicateInputError {}
 
+/// An error indicating that some word in the weekday spec of an
+/// expression cannot be parsed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct UnknownWeekdayError {
     pub input: String,
@@ -59,6 +67,8 @@ impl fmt::Display for UnknownWeekdayError {
 
 impl Error for UnknownWeekdayError {}
 
+/// An error indicating that the week spec of an expression contains
+/// invalid input.
 #[derive(Debug, Clone, PartialEq)]
 pub struct InvalidWeekSpecError {
     pub input: String,
