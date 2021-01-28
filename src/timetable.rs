@@ -60,25 +60,51 @@ mod tests {
     #[test]
     fn test_parse_hours_for_out_of_bounds_error() {
         let expression = "at 6, 15, 24 o'clock on Friday";
-        assert!(parse_hours(expression).is_err());
+        assert_eq!(
+            *parse_hours(expression)
+                .unwrap_err()
+                .downcast::<HoursOutOfBoundsError>()
+                .unwrap(),
+            HoursOutOfBoundsError { input: 24 }
+        );
     }
 
     #[test]
-    fn test_parse_hours_for_duplicate_error() {
+    fn test_parse_hours_for_invalid_expression_error() {
         let expression = "at 6, 15, 17 18 o'clock on Monday";
-        assert!(parse_hours(expression).is_err());
+        assert_eq!(
+            *parse_hours(expression)
+                .unwrap_err()
+                .downcast::<InvalidExpressionError>()
+                .unwrap(),
+            InvalidExpressionError
+        );
     }
 
     #[test]
     fn test_parse_weekdays_for_invalid_weekday_error() {
         let expression = "at 6 o'clock on Sunday and Thursday and Fuu in odd weeks";
-        assert!(parse_weekdays(expression).is_err());
+        assert_eq!(
+            *parse_weekdays(expression)
+                .unwrap_err()
+                .downcast::<UnknownWeekdayError>()
+                .unwrap(),
+            UnknownWeekdayError {
+                input: "Fuu".to_string()
+            }
+        );
     }
 
     #[test]
     fn test_parse_weekdays_for_duplicate_error() {
-        let expression = "at 13 o'clock on Monday, and Monday and Friday";
-        assert!(parse_weekdays(expression).is_err());
+        let expression = "at 13 o'clock on Monday and Monday and Friday";
+        assert_eq!(
+            *parse_weekdays(expression)
+                .unwrap_err()
+                .downcast::<DuplicateInputError>()
+                .unwrap(),
+            DuplicateInputError
+        );
     }
 
     #[test]
