@@ -108,7 +108,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable1() {
+    fn test_timetable_iteration1() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(15:00:00)).assume_utc(),
@@ -133,7 +133,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable2() {
+    fn test_timetable_iteration2() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
@@ -159,7 +159,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable3() {
+    fn test_timetable_iteration3() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 01 - 17), time!(08:24:47)).assume_utc(),
