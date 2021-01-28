@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 time = "=0.2.22"
+lazy_static = "1.4"

@@ -2,6 +2,7 @@ use crate::error::{
     DuplicateInputError, HoursOutOfBoundsError, InvalidExpressionError, InvalidWeekSpecError,
     InvalidWeekdaySpecError,
 };
+use std::collections::HashMap;
 use std::error::Error;
 use std::iter::Iterator;
 use std::str::FromStr;
@@ -153,6 +154,20 @@ mod tests {
             result
         );
     }
+}
+
+lazy_static::lazy_static! {
+    static ref WEEKDAY_MAPPING: HashMap<&'static str, u8> = {
+        let mut t = HashMap::new();
+        t.insert("Sunday", 0);
+        t.insert("Monday", 1);
+        t.insert("Tuesday", 2);
+        t.insert("Wednesday", 3);
+        t.insert("Thursday", 4);
+        t.insert("Friday", 5);
+        t.insert("Saturday", 6);
+        t
+    };
 }
 
 #[derive(Debug, PartialEq)]
@@ -328,57 +343,15 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
     for mut item in section.replace("and", ",").split(',') {
         item = item.trim();
 
-        match item {
-            "Sunday" => {
-                if !weekdays.contains(&0) {
-                    weekdays.push(0);
+        match WEEKDAY_MAPPING.get(item) {
+            Some(i) => {
+                if !weekdays.contains(i) {
+                    weekdays.push(*i);
                 } else {
                     return Err(DuplicateInputError.into());
                 }
             }
-            "Monday" => {
-                if !weekdays.contains(&1) {
-                    weekdays.push(1);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            "Tuesday" => {
-                if !weekdays.contains(&2) {
-                    weekdays.push(2);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            "Wednesday" => {
-                if !weekdays.contains(&3) {
-                    weekdays.push(3);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            "Thursday" => {
-                if !weekdays.contains(&4) {
-                    weekdays.push(4);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            "Friday" => {
-                if !weekdays.contains(&5) {
-                    weekdays.push(5);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            "Saturday" => {
-                if !weekdays.contains(&6) {
-                    weekdays.push(6);
-                } else {
-                    return Err(DuplicateInputError.into());
-                }
-            }
-            _ => return Err(InvalidWeekdaySpecError.into()),
+            None => return Err(InvalidWeekdaySpecError.into()),
         }
     }
 
