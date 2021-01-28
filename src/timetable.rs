@@ -244,6 +244,12 @@ impl Iterator for Timetable {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
+        let now = OffsetDateTime::try_now_local().unwrap();
+
+        if now > self.base {
+            self.base = now;
+        }
+
         let (mut next_date, next_time) = match &self.weekdays {
             Some(weekdays) => {
                 let this_weekday = self.base.weekday().number_days_from_sunday();
