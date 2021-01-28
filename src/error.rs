@@ -18,18 +18,20 @@ impl From<Box<dyn Error>> for InvalidExpressionError {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct HoursOutOfBoundsError;
+#[derive(Debug, Clone, PartialEq)]
+pub struct HoursOutOfBoundsError {
+    pub input: u8,
+}
 
 impl fmt::Display for HoursOutOfBoundsError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "at least one value in the expression is out of range, must be between 0 and 23 inclusively")
+        write!(f, "at least one value in the expression is out of range, must be between 0 and 23 inclusivelyi, is {}", self.input)
     }
 }
 
 impl Error for HoursOutOfBoundsError {}
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct DuplicateInputError;
 
 impl fmt::Display for DuplicateInputError {
@@ -40,23 +42,31 @@ impl fmt::Display for DuplicateInputError {
 
 impl Error for DuplicateInputError {}
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InvalidWeekdaySpecError;
+#[derive(Debug, Clone, PartialEq)]
+pub struct UnknownWeekdayError {
+    pub input: String,
+}
 
-impl fmt::Display for InvalidWeekdaySpecError {
+impl fmt::Display for UnknownWeekdayError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression contains invalid weekday input")
+        write!(
+            f,
+            "the expression contains invalid weekday input: {}",
+            self.input
+        )
     }
 }
 
-impl Error for InvalidWeekdaySpecError {}
+impl Error for UnknownWeekdayError {}
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InvalidWeekSpecError;
+#[derive(Debug, Clone, PartialEq)]
+pub struct InvalidWeekSpecError {
+    pub input: String,
+}
 
 impl fmt::Display for InvalidWeekSpecError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression contains invalid input for the week spec, must be either 'odd' or 'even'")
+        write!(f, "the expression contains invalid input for the week spec, must be either 'odd' or 'even', is: {}", self.input)
     }
 }
 

@@ -1,6 +1,6 @@
 use crate::error::{
     DuplicateInputError, HoursOutOfBoundsError, InvalidExpressionError, InvalidWeekSpecError,
-    InvalidWeekdaySpecError,
+    UnknownWeekdayError,
 };
 use std::collections::HashMap;
 use std::error::Error;
@@ -313,7 +313,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
                 if hours.contains(&num) {
                     return Err(DuplicateInputError.into());
                 } else if !(0..=23).contains(&num) {
-                    return Err(HoursOutOfBoundsError.into());
+                    return Err(HoursOutOfBoundsError { input: num }.into());
                 } else {
                     hours.push(num);
                 }
@@ -351,7 +351,12 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
                     return Err(DuplicateInputError.into());
                 }
             }
-            None => return Err(InvalidWeekdaySpecError.into()),
+            None => {
+                return Err(UnknownWeekdayError {
+                    input: item.to_string(),
+                }
+                .into())
+            }
         }
     }
 
@@ -373,7 +378,10 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> 
             match section {
                 "even" => Ok(Some(WeekVariant::Even)),
                 "odd" => Ok(Some(WeekVariant::Odd)),
-                _ => Err(InvalidWeekSpecError.into()),
+                _ => Err(InvalidWeekSpecError {
+                    input: section.to_string(),
+                }
+                .into()),
             }
         }
         None => Ok(None),
