@@ -3,6 +3,11 @@ name = "cron-lingo"
 version = "0.1.0"
 authors = ["Peter Sebastian Pütz <ppuetz@protonmail.com>"]
 edition = "2018"
+repository = "https://github.com/puetzp/cron-lingo"
+readme = "README.md"
+license = "MIT"
+description = "Alternative cron-like expression parser for schedulling"
+keywords = ["time", "cron", "schedule"]
 
 [dependencies]
 time = "=0.2.22"
