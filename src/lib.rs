@@ -10,6 +10,22 @@
 //!     assert!(timetable.into_iter().next().is_some());
 //! }
 //! ```
+//!
+//! # Expression syntax
+//!
+//! The syntax is (so far) quite limited. Some things that are expressible
+//! in standard cron syntax, for example the step-notation ("*/2"), are intentionally
+//! omitted. Some things are just missing because they have not been implemented
+//! yet.
+//!
+//! Here are a few examples:
+//!
+//! | Hour                   | Weekday (optional)    | Week (optional) |
+//! | ---------------------- | --------------------- | --------------- |
+//! | at every hour          | on Monday and Tuesday | in odd weeks    |
+//! | at 7 and 8 o'clock     | on Tuesday, Saturday  | in even weeks   |
+//! | at 7, 8 and 16 o'clock | on Friday             |                 |
+//! | at 6, 12, 18 o'clock   |                       |                 |
 pub mod error;
 pub mod timetable;
 
