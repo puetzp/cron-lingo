@@ -1,9 +1,5 @@
-use crate::error::{
-    DuplicateInputError, HoursOutOfBoundsError, InvalidExpressionError, InvalidWeekSpecError,
-    UnknownWeekdayError,
-};
+use crate::error::*;
 use std::collections::HashMap;
-use std::error::Error;
 use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time};
@@ -221,17 +217,17 @@ impl Timetable {
     /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
     /// assert!(Timetable::new(expr).is_ok());
     /// ```
-    pub fn new(expression: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn new(expression: &str) -> Result<Self, InvalidExpressionError> {
         Timetable::from_str(expression)
     }
 }
 
 impl FromStr for Timetable {
-    type Err = Box<dyn Error>;
+    type Err = InvalidExpressionError;
 
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Timetable {
-            base: OffsetDateTime::try_now_local()?,
+            base: OffsetDateTime::try_now_local().unwrap(),
             hours: parse_hours(expression)?,
             weekdays: parse_weekdays(expression)?,
             weeks: parse_weeks(expression)?,
@@ -329,10 +325,10 @@ enum WeekVariant {
 // Parse the hour spec of an expression and return a sorted list.
 // Determine the start end end bounds of the relevant part, parse
 // each comma-separated value and add them to a vector.
-fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
+fn parse_hours(expression: &str) -> Result<Vec<u8>, InvalidExpressionError> {
     let start = match expression.find("at") {
         Some(start_idx) => start_idx,
-        None => return Err(InvalidExpressionError.into()),
+        None => return Err(InvalidExpressionError::InvalidHourSpec),
     };
 
     let mut section = if let Some(end_idx) = expression.find("on") {
@@ -349,27 +345,29 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 
     section = match section.strip_suffix("o'clock") {
         Some(stripped) => stripped,
-        None => return Err(InvalidExpressionError.into()),
+        None => return Err(InvalidExpressionError::InvalidHourSpec),
     };
 
     let section = section.replace("and", ",");
 
     let mut hours = Vec::new();
 
-    for mut item in section.split(',') {
-        item = item.trim();
+    for i in section.split(',') {
+        let item = i.trim().to_string();
 
         match item.parse::<u8>() {
             Ok(num) => {
                 if hours.contains(&num) {
-                    return Err(DuplicateInputError.into());
+                    return Err(InvalidExpressionError::DuplicateInput);
                 } else if !(0..=23).contains(&num) {
-                    return Err(HoursOutOfBoundsError { input: num }.into());
+                    return Err(InvalidExpressionError::HoursOutOfBounds(
+                        HoursOutOfBoundsError { input: num },
+                    ));
                 } else {
                     hours.push(num);
                 }
             }
-            Err(_) => return Err(InvalidExpressionError.into()),
+            Err(_) => return Err(InvalidExpressionError::ParseHour),
         }
     }
 
@@ -382,7 +380,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, Box<dyn Error>> {
 // Determine the start and end bounds of the relevant part, parse
 // each comma-separated value, map it to a corresponding integer
 // and add it to a vector.
-fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
+fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, InvalidExpressionError> {
     let start = match expression.find("on") {
         Some(start_idx) => start_idx,
         None => return Ok(None),
@@ -403,15 +401,10 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
                 if !weekdays.contains(i) {
                     weekdays.push(*i);
                 } else {
-                    return Err(DuplicateInputError.into());
+                    return Err(InvalidExpressionError::DuplicateInput);
                 }
             }
-            None => {
-                return Err(UnknownWeekdayError {
-                    input: item.to_string(),
-                }
-                .into())
-            }
+            None => return Err(InvalidExpressionError::UnknownWeekday),
         }
     }
 
@@ -424,12 +417,12 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, Box<dyn Error>> {
 // After determining the start and end bounds, the value in between
 // is attempted to be matched. If the value is supported, it is mapped
 // to a WeekVariant.
-fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> {
+fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressionError> {
     match expression.find("weeks") {
         Some(end_idx) => {
             let start_idx = match expression.find("in") {
                 Some(start_idx) => start_idx,
-                None => return Err(InvalidExpressionError.into()),
+                None => return Err(InvalidExpressionError::InvalidWeekSpec),
             };
 
             let section = expression[start_idx + 2..end_idx].trim();
@@ -437,10 +430,7 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, Box<dyn Error>> 
             match section {
                 "even" => Ok(Some(WeekVariant::Even)),
                 "odd" => Ok(Some(WeekVariant::Odd)),
-                _ => Err(InvalidWeekSpecError {
-                    input: section.to_string(),
-                }
-                .into()),
+                _ => Err(InvalidExpressionError::InvalidWeekSpec),
             }
         }
         None => Ok(None),
