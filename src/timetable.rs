@@ -57,37 +57,26 @@ mod tests {
     fn test_parse_hours_for_out_of_bounds_error() {
         let expression = "at 6, 15, 24 o'clock on Friday";
         assert_eq!(
-            *parse_hours(expression)
-                .unwrap_err()
-                .downcast::<HoursOutOfBoundsError>()
-                .unwrap(),
-            HoursOutOfBoundsError { input: 24 }
+            parse_hours(expression).unwrap_err(),
+            InvalidExpressionError::HoursOutOfBounds(HoursOutOfBoundsError { input: 24 })
         );
     }
 
     #[test]
-    fn test_parse_hours_for_invalid_expression_error() {
+    fn test_parse_hours_for_hour_parsing_error() {
         let expression = "at 6, 15, 17 18 o'clock on Monday";
         assert_eq!(
-            *parse_hours(expression)
-                .unwrap_err()
-                .downcast::<InvalidExpressionError>()
-                .unwrap(),
-            InvalidExpressionError
+            parse_hours(expression).unwrap_err(),
+            InvalidExpressionError::ParseHour
         );
     }
 
     #[test]
-    fn test_parse_weekdays_for_invalid_weekday_error() {
+    fn test_parse_weekdays_for_unknown_weekday_error() {
         let expression = "at 6 o'clock on Sunday and Thursday and Fuu in odd weeks";
         assert_eq!(
-            *parse_weekdays(expression)
-                .unwrap_err()
-                .downcast::<UnknownWeekdayError>()
-                .unwrap(),
-            UnknownWeekdayError {
-                input: "Fuu".to_string()
-            }
+            parse_weekdays(expression).unwrap_err(),
+            InvalidExpressionError::UnknownWeekday
         );
     }
 
@@ -95,11 +84,8 @@ mod tests {
     fn test_parse_weekdays_for_duplicate_error() {
         let expression = "at 13 o'clock on Monday and Monday and Friday";
         assert_eq!(
-            *parse_weekdays(expression)
-                .unwrap_err()
-                .downcast::<DuplicateInputError>()
-                .unwrap(),
-            DuplicateInputError
+            parse_weekdays(expression).unwrap_err(),
+            InvalidExpressionError::DuplicateInput
         );
     }
 
@@ -107,17 +93,17 @@ mod tests {
     fn test_timetable_iteration1() {
         use time::{date, time};
         let timetable = Timetable {
-            base: PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(15:00:00)).assume_utc(),
+            base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(15:00:00)).assume_utc(),
             hours: vec![6, 18],
             weekdays: Some(vec![1, 3]),
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 01 - 27), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 02 - 08), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 02 - 10), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 02 - 10), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(18:00:00)).assume_utc(),
         ];
         assert_eq!(
             timetable
@@ -158,15 +144,15 @@ mod tests {
     fn test_timetable_iteration3() {
         use time::{date, time};
         let timetable = Timetable {
-            base: PrimitiveDateTime::new(date!(2021 - 01 - 17), time!(08:24:47)).assume_utc(),
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(08:24:47)).assume_utc(),
             hours: vec![6, 12],
             weekdays: None,
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 01 - 17), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 01 - 25), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 01 - 25), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
             timetable
