@@ -308,6 +308,17 @@ enum WeekVariant {
     Odd,
 }
 
+#[derive(Debug, PartialEq)]
+enum Weekday {
+    Sunday,
+    Monday,
+    Tuesday,
+    Wednesday,
+    Thursday,
+    Friday,
+    Saturday,
+}
+
 // Parse the hour spec of an expression and return a sorted list.
 // Determine the start end end bounds of the relevant part, parse
 // each comma-separated value and add them to a vector.
@@ -366,7 +377,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, InvalidExpressionError> {
 // Determine the start and end bounds of the relevant part, parse
 // each comma-separated value, map it to a corresponding integer
 // and add it to a vector.
-fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, InvalidExpressionError> {
+fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpressionError> {
     let start = match expression.find("on") {
         Some(start_idx) => start_idx,
         None => return Ok(None),
@@ -379,18 +390,22 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<u8>>, InvalidExpression
 
     let mut weekdays = Vec::new();
 
-    for mut item in section.replace("and", ",").split(',') {
-        item = item.trim();
+    for item in section.replace("and", ",").split(',') {
+        let weekday = match item.trim() {
+            "Sunday" => Weekday::Sunday,
+            "Monday" => Weekday::Monday,
+            "Tuesday" => Weekday::Tuesday,
+            "Wednesday" => Weekday::Wednesday,
+            "Thursday" => Weekday::Thursday,
+            "Friday" => Weekday::Friday,
+            "Saturday" => Weekday::Saturday,
+            _ => return Err(InvalidExpressionError::UnknownWeekday),
+        };
 
-        match WEEKDAY_MAPPING.get(item) {
-            Some(i) => {
-                if !weekdays.contains(i) {
-                    weekdays.push(*i);
-                } else {
-                    return Err(InvalidExpressionError::DuplicateInput);
-                }
-            }
-            None => return Err(InvalidExpressionError::UnknownWeekday),
+        if !weekdays.contains(weekday) {
+            weekdays.push(weekday);
+        } else {
+            return Err(InvalidExpressionError::DuplicateInput);
         }
     }
 
