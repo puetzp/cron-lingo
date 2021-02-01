@@ -57,6 +57,18 @@ mod tests {
     }
 
     #[test]
+    fn test_timetable_with_specific_weeks() {
+        let expression = "at 6, 23 o'clock in the fourth and first week of the month";
+        let timetable = Timetable::new(expression).unwrap();
+        assert_eq!(timetable.hours, vec!(6, 23));
+        assert_eq!(timetable.weekdays, None);
+        assert_eq!(
+            timetable.weeks,
+            Some(WeekVariant::Selection(vec!(Week::First, Week::Fourth)))
+        );
+    }
+
+    #[test]
     fn test_parse_hours_for_out_of_bounds_error() {
         let expression = "at 6, 15, 24 o'clock on Friday";
         assert_eq!(
@@ -280,6 +292,7 @@ impl Iterator for Timetable {
                         next_date += Duration::week();
                     }
                 }
+                _ => unreachable!(),
             }
         }
 
@@ -372,7 +385,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, InvalidExpressionError> {
         None => return Err(InvalidExpressionError::InvalidHourSpec),
     };
 
-    let mut section = if let Some(end_idx) = expression.find("on") {
+    let mut section = if let Some(end_idx) = expression.find("on ") {
         expression[start + 2..end_idx].trim()
     } else if let Some(end_idx) = expression.find("in") {
         expression[start + 2..end_idx].trim()
@@ -489,10 +502,8 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
 
                 let mut weeks = Vec::new();
 
-                for mut item in section.replace("and", ",").split(",") {
-                    item = item.trim();
-
-                    match item {
+                for item in section.replace("and", ",").split(",") {
+                    match item.trim() {
                         "first" => weeks.push(Week::First),
                         "second" => weeks.push(Week::Second),
                         "third" => weeks.push(Week::Third),
