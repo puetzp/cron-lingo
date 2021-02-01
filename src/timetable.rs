@@ -190,7 +190,7 @@ lazy_static::lazy_static! {
 pub struct Timetable {
     base: OffsetDateTime,
     hours: Vec<u8>,
-    weekdays: Option<Vec<u8>>,
+    weekdays: Option<Vec<Weekday>>,
     weeks: Option<WeekVariant>,
 }
 
@@ -234,7 +234,7 @@ impl Iterator for Timetable {
 
         let (mut next_date, next_time) = match &self.weekdays {
             Some(weekdays) => {
-                let this_weekday = self.base.weekday().number_days_from_sunday();
+                let this_weekday = self.base.weekday().number_days_from_sunday().into();
 
                 let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
                     match self.hours.iter().find(|&&x| x > self.base.hour()) {
@@ -255,7 +255,7 @@ impl Iterator for Timetable {
 
                 let day_addend = {
                     if this_weekday > next_weekday {
-                        7 - this_weekday + next_weekday
+                        7 - (this_weekday + next_weekday)
                     } else {
                         next_weekday - this_weekday
                     }
@@ -308,7 +308,7 @@ enum WeekVariant {
     Odd,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Weekday {
     Sunday,
     Monday,
@@ -317,6 +317,51 @@ enum Weekday {
     Thursday,
     Friday,
     Saturday,
+}
+
+impl From<Weekday> for u8 {
+    fn from(weekday: Weekday) -> Self {
+        match weekday {
+            Weekday::Sunday => 0,
+            Weekday::Monday => 1,
+            Weekday::Tuesday => 2,
+            Weekday::Wednesday => 3,
+            Weekday::Thursday => 4,
+            Weekday::Friday => 5,
+            Weekday::Saturday => 6,
+        }
+    }
+}
+
+impl From<u8> for Weekday {
+    fn from(num: u8) -> Self {
+        match num {
+            0 => Weekday::Sunday,
+            1 => Weekday::Monday,
+            2 => Weekday::Tuesday,
+            3 => Weekday::Wednesday,
+            4 => Weekday::Thursday,
+            5 => Weekday::Friday,
+            6 => Weekday::Saturday,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl std::ops::Sub for Weekday {
+    type Output = u8;
+
+    fn sub(self, other: Self) -> u8 {
+        u8::from(self) - u8::from(other)
+    }
+}
+
+impl std::ops::Add for Weekday {
+    type Output = u8;
+
+    fn add(self, other: Self) -> u8 {
+        u8::from(self) + u8::from(other)
+    }
 }
 
 // Parse the hour spec of an expression and return a sorted list.
@@ -402,7 +447,7 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpre
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
-        if !weekdays.contains(weekday) {
+        if !weekdays.contains(&weekday) {
             weekdays.push(weekday);
         } else {
             return Err(InvalidExpressionError::DuplicateInput);
