@@ -435,7 +435,7 @@ fn parse_hours(expression: &str) -> Result<Vec<u8>, InvalidExpressionError> {
 // each comma-separated value, map it to a corresponding integer
 // and add it to a vector.
 fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpressionError> {
-    let start = match expression.find("on") {
+    let start = match expression.find("on ") {
         Some(start_idx) => start_idx,
         None => return Ok(None),
     };
