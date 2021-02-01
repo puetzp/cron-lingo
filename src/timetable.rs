@@ -10,14 +10,17 @@ mod tests {
 
     #[test]
     fn test_complete_timetable() {
-        let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
+        let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in the first week of the month";
         let timetable = Timetable::new(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 7, 8, 14));
         assert_eq!(
             timetable.weekdays,
             Some(vec!(Weekday::Monday, Weekday::Thursday, Weekday::Saturday))
         );
-        assert_eq!(timetable.weeks, Some(WeekVariant::Even));
+        assert_eq!(
+            timetable.weeks,
+            Some(WeekVariant::Selection(vec!(Week::First)))
+        );
     }
 
     #[test]
