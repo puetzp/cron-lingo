@@ -13,7 +13,10 @@ mod tests {
         let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in even weeks";
         let timetable = Timetable::new(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 7, 8, 14));
-        assert_eq!(timetable.weekdays, Some(vec!(1, 4, 6)));
+        assert_eq!(
+            timetable.weekdays,
+            Some(vec!(Weekday::Monday, Weekday::Thursday, Weekday::Saturday))
+        );
         assert_eq!(timetable.weeks, Some(WeekVariant::Even));
     }
 
@@ -22,7 +25,7 @@ mod tests {
         let expression = "at 6, 15 o'clock on Friday";
         let timetable = Timetable::new(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 15));
-        assert_eq!(timetable.weekdays, Some(vec!(5)));
+        assert_eq!(timetable.weekdays, Some(vec!(Weekday::Friday)));
         assert_eq!(timetable.weeks, None);
     }
 
@@ -95,7 +98,7 @@ mod tests {
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(15:00:00)).assume_utc(),
             hours: vec![6, 18],
-            weekdays: Some(vec![1, 3]),
+            weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
@@ -120,7 +123,7 @@ mod tests {
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
             hours: vec![12],
-            weekdays: Some(vec![0, 5]),
+            weekdays: Some(vec![Weekday::Sunday, Weekday::Friday]),
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
