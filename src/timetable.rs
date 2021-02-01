@@ -244,6 +244,8 @@ impl Iterator for Timetable {
                 let day_addend = {
                     if this_weekday > next_weekday {
                         7 - (this_weekday - next_weekday)
+                    } else if this_weekday == next_weekday && next_time < now.time() {
+                        7
                     } else {
                         next_weekday - this_weekday
                     }
