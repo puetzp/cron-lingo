@@ -11,4 +11,3 @@ keywords = ["time", "cron", "schedule"]
 
 [dependencies]
 time = "=0.2.22"
-lazy_static = "1.4"

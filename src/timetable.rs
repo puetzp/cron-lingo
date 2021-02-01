@@ -1,5 +1,5 @@
 use crate::error::*;
-use std::collections::HashMap;
+use std::convert::TryInto;
 use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time};
@@ -123,7 +123,7 @@ mod tests {
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
             hours: vec![12],
-            weekdays: Some(vec![Weekday::Sunday, Weekday::Friday]),
+            weekdays: Some(vec![Weekday::Friday, Weekday::Sunday]),
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
@@ -165,21 +165,6 @@ mod tests {
             result
         );
     }
-}
-
-// This HashMap is just used to simplify the parse_weekdays function.
-lazy_static::lazy_static! {
-    static ref WEEKDAY_MAPPING: HashMap<&'static str, u8> = {
-        let mut t = HashMap::new();
-        t.insert("Sunday", 0);
-        t.insert("Monday", 1);
-        t.insert("Tuesday", 2);
-        t.insert("Wednesday", 3);
-        t.insert("Thursday", 4);
-        t.insert("Friday", 5);
-        t.insert("Saturday", 6);
-        t
-    };
 }
 
 /// A timetable that is built from an expression and can be iterated over
@@ -237,7 +222,7 @@ impl Iterator for Timetable {
 
         let (mut next_date, next_time) = match &self.weekdays {
             Some(weekdays) => {
-                let this_weekday = self.base.weekday().number_days_from_sunday().into();
+                let this_weekday = self.base.weekday().number_days_from_monday().into();
 
                 let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
                     match self.hours.iter().find(|&&x| x > self.base.hour()) {
@@ -258,7 +243,7 @@ impl Iterator for Timetable {
 
                 let day_addend = {
                     if this_weekday > next_weekday {
-                        7 - (this_weekday + next_weekday)
+                        7 - (this_weekday - next_weekday)
                     } else {
                         next_weekday - this_weekday
                     }
@@ -313,25 +298,25 @@ enum WeekVariant {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Weekday {
-    Sunday,
     Monday,
     Tuesday,
     Wednesday,
     Thursday,
     Friday,
     Saturday,
+    Sunday,
 }
 
 impl From<Weekday> for u8 {
     fn from(weekday: Weekday) -> Self {
         match weekday {
-            Weekday::Sunday => 0,
-            Weekday::Monday => 1,
-            Weekday::Tuesday => 2,
-            Weekday::Wednesday => 3,
-            Weekday::Thursday => 4,
-            Weekday::Friday => 5,
-            Weekday::Saturday => 6,
+            Weekday::Monday => 0,
+            Weekday::Tuesday => 1,
+            Weekday::Wednesday => 2,
+            Weekday::Thursday => 3,
+            Weekday::Friday => 4,
+            Weekday::Saturday => 5,
+            Weekday::Sunday => 6,
         }
     }
 }
@@ -339,23 +324,23 @@ impl From<Weekday> for u8 {
 impl From<u8> for Weekday {
     fn from(num: u8) -> Self {
         match num {
-            0 => Weekday::Sunday,
-            1 => Weekday::Monday,
-            2 => Weekday::Tuesday,
-            3 => Weekday::Wednesday,
-            4 => Weekday::Thursday,
-            5 => Weekday::Friday,
-            6 => Weekday::Saturday,
+            0 => Weekday::Monday,
+            1 => Weekday::Tuesday,
+            2 => Weekday::Wednesday,
+            3 => Weekday::Thursday,
+            4 => Weekday::Friday,
+            5 => Weekday::Saturday,
+            6 => Weekday::Sunday,
             _ => unreachable!(),
         }
     }
 }
 
 impl std::ops::Sub for Weekday {
-    type Output = u8;
+    type Output = i8;
 
-    fn sub(self, other: Self) -> u8 {
-        u8::from(self) - u8::from(other)
+    fn sub(self, other: Self) -> i8 {
+        (u8::from(self) - u8::from(other)).try_into().unwrap()
     }
 }
 
@@ -440,13 +425,13 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpre
 
     for item in section.replace("and", ",").split(',') {
         let weekday = match item.trim() {
-            "Sunday" => Weekday::Sunday,
             "Monday" => Weekday::Monday,
             "Tuesday" => Weekday::Tuesday,
             "Wednesday" => Weekday::Wednesday,
             "Thursday" => Weekday::Thursday,
             "Friday" => Weekday::Friday,
             "Saturday" => Weekday::Saturday,
+            "Sunday" => Weekday::Sunday,
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
