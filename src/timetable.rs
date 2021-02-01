@@ -96,6 +96,16 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_weekdays_for_invalid_weekspec_error() {
+        let expression =
+            "at 6 o'clock on Sunday and Thursday in the first, second and thrd week of the month";
+        assert_eq!(
+            parse_weeks(expression).unwrap_err(),
+            InvalidExpressionError::InvalidWeekSpec
+        );
+    }
+
+    #[test]
     fn test_parse_weekdays_for_duplicate_error() {
         let expression = "at 13 o'clock on Monday and Monday and Friday";
         assert_eq!(
