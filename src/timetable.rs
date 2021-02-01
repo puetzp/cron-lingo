@@ -296,6 +296,15 @@ impl Iterator for Timetable {
 enum WeekVariant {
     Even,
     Odd,
+    Selection(Vec<Week>),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
+enum Week {
+    First,
+    Second,
+    Third,
+    Fourth,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
@@ -469,6 +478,32 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
                 _ => Err(InvalidExpressionError::InvalidWeekSpec),
             }
         }
-        None => Ok(None),
+        None => match expression.find("week of the month") {
+            Some(end_idx) => {
+                let start_idx = match expression.find("in the") {
+                    Some(start_idx) => start_idx,
+                    None => return Err(InvalidExpressionError::InvalidWeekSpec),
+                };
+
+                let section = expression[start_idx + 6..end_idx].trim();
+
+                let mut weeks = Vec::new();
+
+                for mut item in section.replace("and", ",").split(",") {
+                    item = item.trim();
+
+                    match item {
+                        "first" => weeks.push(Week::First),
+                        "second" => weeks.push(Week::Second),
+                        "third" => weeks.push(Week::Third),
+                        "fourth" => weeks.push(Week::Fourth),
+                        _ => return Err(InvalidExpressionError::InvalidWeekSpec),
+                    }
+                }
+                weeks.sort();
+                Ok(Some(WeekVariant::Selection(weeks)))
+            }
+            None => Ok(None),
+        },
     }
 }
