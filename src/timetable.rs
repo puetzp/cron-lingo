@@ -229,10 +229,10 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(06:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(06:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 08), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 08), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
             timetable
@@ -321,14 +321,14 @@ impl Iterator for Timetable {
                 let day_addend = {
                     if this_weekday > next_weekday {
                         7 - (this_weekday - next_weekday)
-                    } else if this_weekday == next_weekday && next_time < now.time() {
-                        7
                     } else {
                         next_weekday - this_weekday
                     }
                 };
 
                 let next_date = self.base.date() + Duration::days(day_addend.into());
+                println!("{:?}", next_weekday);
+                println!("{:?}", next_date);
 
                 (next_date, next_time)
             }
