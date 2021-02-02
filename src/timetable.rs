@@ -242,6 +242,34 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_timetable_iteration6() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 09 - 14), time!(09:00:00)).assume_utc(),
+            hours: vec![6, 12],
+            weekdays: Some(vec![Weekday::Monday, Weekday::Friday]),
+            weeks: Some(WeekVariant::First),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 10 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 10 - 01), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 10 - 04), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 10 - 04), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 11 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 11 - 01), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(12:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
 
 /// A timetable that is built from an expression and can be iterated over
@@ -327,8 +355,6 @@ impl Iterator for Timetable {
                 };
 
                 let next_date = self.base.date() + Duration::days(day_addend.into());
-                println!("{:?}", next_weekday);
-                println!("{:?}", next_date);
 
                 (next_date, next_time)
             }
@@ -353,6 +379,28 @@ impl Iterator for Timetable {
                     }
                 }
                 WeekVariant::First => {
+                    if !week.contains(next_date) {
+                        let first_next = get_first_of_next_month(next_date);
+                        let first_wd_next: Weekday = first_next.weekday().into();
+
+                        match &self.weekdays {
+                            Some(weekdays) => {
+                                match weekdays.iter().find(|&&wd| wd >= first_wd_next) {
+                                    Some(wd) => {
+                                        let delta = *wd - first_wd_next;
+                                        next_date = first_next + Duration::days(delta.into());
+                                    }
+                                    None => {
+                                        let delta = 7 - (first_wd_next - weekdays[0]);
+                                        next_date = first_next + Duration::days(delta.into());
+                                    }
+                                }
+                            }
+                            None => next_date = first_next,
+                        }
+                    }
+                }
+                WeekVariant::Second => {
                     if !week.contains(next_date) {
                         let first_next = get_first_of_next_month(next_date);
                         let first_wd_next: Weekday = first_next.weekday().into();
