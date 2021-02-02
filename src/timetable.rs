@@ -2,7 +2,7 @@ use crate::error::*;
 use std::convert::TryInto;
 use std::iter::Iterator;
 use std::str::FromStr;
-use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time};
+use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
 #[cfg(test)]
 mod tests {
@@ -17,10 +17,7 @@ mod tests {
             timetable.weekdays,
             Some(vec!(Weekday::Monday, Weekday::Thursday, Weekday::Saturday))
         );
-        assert_eq!(
-            timetable.weeks,
-            Some(WeekVariant::Selection(vec!(Week::First)))
-        );
+        assert_eq!(timetable.weeks, Some(WeekVariant::First));
     }
 
     #[test]
@@ -61,14 +58,11 @@ mod tests {
 
     #[test]
     fn test_timetable_with_specific_weeks() {
-        let expression = "at 6, 23 o'clock in the fourth and first week of the month";
+        let expression = "at 6, 23 o'clock in the fourth  week of the month";
         let timetable = Timetable::new(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 23));
         assert_eq!(timetable.weekdays, None);
-        assert_eq!(
-            timetable.weeks,
-            Some(WeekVariant::Selection(vec!(Week::First, Week::Fourth)))
-        );
+        assert_eq!(timetable.weeks, Some(WeekVariant::Fourth));
     }
 
     #[test]
@@ -100,8 +94,7 @@ mod tests {
 
     #[test]
     fn test_parse_weekdays_for_invalid_weekspec_error() {
-        let expression =
-            "at 6 o'clock on Sunday and Thursday in the first, second and thrd week of the month";
+        let expression = "at 6 o'clock on Sunday and Thursday in the thrd week of the month";
         assert_eq!(
             parse_weeks(expression).unwrap_err(),
             InvalidExpressionError::InvalidWeekSpec
@@ -186,6 +179,65 @@ mod tests {
             timetable
                 .into_iter()
                 .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_timetable_iteration4() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
+            hours: vec![6, 12],
+            weekdays: None,
+            weeks: Some(WeekVariant::First),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 05), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 05), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 06), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 06), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(11)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_timetable_iteration5() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
+            hours: vec![6, 12],
+            weekdays: Some(vec![Weekday::Wednesday, Weekday::Sunday]),
+            weeks: Some(WeekVariant::First),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 08), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 08), time!(12:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(8)
                 .collect::<Vec<OffsetDateTime>>(),
             result
         );
@@ -296,13 +348,35 @@ impl Iterator for Timetable {
         if let Some(weeks) = &self.weeks {
             match weeks {
                 WeekVariant::Even => {
-                    if !next_date.week() % 2 == 0 {
+                    if next_date.week() % 2 != 0 {
                         next_date += Duration::week();
                     }
                 }
                 WeekVariant::Odd => {
                     if next_date.week() % 2 == 0 {
                         next_date += Duration::week();
+                    }
+                }
+                WeekVariant::First => {
+                    if !is_in_first_week(next_date) {
+                        let first_next = get_first_of_next_month(next_date);
+                        let first_wd_next: Weekday = first_next.weekday().into();
+
+                        match &self.weekdays {
+                            Some(weekdays) => {
+                                match weekdays.iter().find(|&&wd| wd >= first_wd_next) {
+                                    Some(wd) => {
+                                        let delta = *wd - first_wd_next;
+                                        next_date = first_next + Duration::days(delta.into());
+                                    }
+                                    None => {
+                                        let delta = 7 - (first_wd_next - weekdays[0]);
+                                        next_date = first_next + Duration::days(delta.into());
+                                    }
+                                }
+                            }
+                            None => next_date = first_next,
+                        }
                     }
                 }
                 _ => unreachable!(),
@@ -318,15 +392,23 @@ impl Iterator for Timetable {
     }
 }
 
+fn is_in_first_week(date: Date) -> bool {
+    let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+
+    (date - first_day).whole_days() < 7
+}
+
+fn get_first_of_next_month(date: Date) -> Date {
+    match Date::try_from_ymd(date.year(), date.month() + 1, 1) {
+        Ok(d) => d,
+        Err(_) => Date::try_from_ymd(date.year() + 1, 1, 1).unwrap(),
+    }
+}
+
 #[derive(Debug, PartialEq)]
 enum WeekVariant {
     Even,
     Odd,
-    Selection(Vec<Week>),
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-enum Week {
     First,
     Second,
     Third,
@@ -342,6 +424,20 @@ enum Weekday {
     Friday,
     Saturday,
     Sunday,
+}
+
+impl From<time::Weekday> for Weekday {
+    fn from(weekday: time::Weekday) -> Self {
+        match weekday {
+            time::Weekday::Monday => Weekday::Monday,
+            time::Weekday::Tuesday => Weekday::Tuesday,
+            time::Weekday::Wednesday => Weekday::Wednesday,
+            time::Weekday::Thursday => Weekday::Thursday,
+            time::Weekday::Friday => Weekday::Friday,
+            time::Weekday::Saturday => Weekday::Saturday,
+            time::Weekday::Sunday => Weekday::Sunday,
+        }
+    }
 }
 
 impl From<Weekday> for u8 {
@@ -513,19 +609,13 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
 
                 let section = expression[start_idx + 6..end_idx].trim();
 
-                let mut weeks = Vec::new();
-
-                for item in section.replace("and", ",").split(",") {
-                    match item.trim() {
-                        "first" => weeks.push(Week::First),
-                        "second" => weeks.push(Week::Second),
-                        "third" => weeks.push(Week::Third),
-                        "fourth" => weeks.push(Week::Fourth),
-                        _ => return Err(InvalidExpressionError::InvalidWeekSpec),
-                    }
+                match section {
+                    "first" => Ok(Some(WeekVariant::First)),
+                    "second" => Ok(Some(WeekVariant::Second)),
+                    "third" => Ok(Some(WeekVariant::Third)),
+                    "fourth" => Ok(Some(WeekVariant::Fourth)),
+                    _ => return Err(InvalidExpressionError::InvalidWeekSpec),
                 }
-                weeks.sort();
-                Ok(Some(WeekVariant::Selection(weeks)))
             }
             None => Ok(None),
         },
