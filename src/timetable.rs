@@ -270,6 +270,34 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_timetable_iteration7() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 27), time!(09:00:00)).assume_utc(),
+            hours: vec![9, 23],
+            weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
+            weeks: Some(WeekVariant::Second),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(09:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(23:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(09:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(09:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(23:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(09:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(23:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
 
 /// A timetable that is built from an expression and can be iterated over
@@ -402,7 +430,7 @@ impl Iterator for Timetable {
                 }
                 WeekVariant::Second => {
                     if !week.contains(next_date) {
-                        let first_next = get_first_of_next_month(next_date);
+                        let first_next = get_first_of_next_month(next_date) + Duration::days(7);
                         let first_wd_next: Weekday = first_next.weekday().into();
 
                         match &self.weekdays {
