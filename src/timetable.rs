@@ -345,20 +345,15 @@ impl Iterator for Timetable {
             },
         };
 
-        if let Some(weeks) = &self.weeks {
-            match weeks {
-                WeekVariant::Even => {
-                    if next_date.week() % 2 != 0 {
-                        next_date += Duration::week();
-                    }
-                }
-                WeekVariant::Odd => {
-                    if next_date.week() % 2 == 0 {
+        if let Some(week) = &self.weeks {
+            match week {
+                WeekVariant::Even | WeekVariant::Odd => {
+                    if !week.contains(next_date) {
                         next_date += Duration::week();
                     }
                 }
                 WeekVariant::First => {
-                    if !is_in_first_week(next_date) {
+                    if !week.contains(next_date) {
                         let first_next = get_first_of_next_month(next_date);
                         let first_wd_next: Weekday = first_next.weekday().into();
 
@@ -392,12 +387,6 @@ impl Iterator for Timetable {
     }
 }
 
-fn is_in_first_week(date: Date) -> bool {
-    let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-
-    (date - first_day).whole_days() < 7
-}
-
 fn get_first_of_next_month(date: Date) -> Date {
     match Date::try_from_ymd(date.year(), date.month() + 1, 1) {
         Ok(d) => d,
@@ -405,7 +394,7 @@ fn get_first_of_next_month(date: Date) -> Date {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 enum WeekVariant {
     Even,
     Odd,
@@ -413,6 +402,34 @@ enum WeekVariant {
     Second,
     Third,
     Fourth,
+}
+
+impl WeekVariant {
+    fn contains(self, date: Date) -> bool {
+        match self {
+            Self::Even => date.week() % 2 == 0,
+            Self::Odd => date.week() % 2 != 0,
+            Self::First => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                (date - first_day).whole_days() < 7
+            }
+            Self::Second => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                delta >= 7 && delta < 14
+            }
+            Self::Third => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                delta >= 14 && delta < 21
+            }
+            Self::Fourth => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                delta >= 21 && delta < 28
+            }
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
