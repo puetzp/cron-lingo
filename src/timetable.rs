@@ -816,4 +816,50 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_timetable_iteration_fourth_week_only1() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(09:00:00)).assume_utc(),
+            hours: vec![10],
+            weekdays: Some(vec![Weekday::Thursday]),
+            weeks: Some(WeekVariant::Fourth),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 08 - 26), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 09 - 23), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 10 - 28), time!(10:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_timetable_iteration_fourth_week_only2() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 05 - 07), time!(09:00:00)).assume_utc(),
+            hours: vec![10],
+            weekdays: Some(vec![Weekday::Thursday]),
+            weeks: Some(WeekVariant::Fourth),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 05 - 27), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(10:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
