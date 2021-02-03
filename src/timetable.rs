@@ -553,7 +553,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration1() {
+    fn test_timetable_iteration_full_spec_even1() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(15:00:00)).assume_utc(),
@@ -578,7 +578,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration2() {
+    fn test_timetable_iteration_full_spec_even2() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
@@ -604,7 +604,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration3() {
+    fn test_timetable_iteration_no_weekdays() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(08:24:47)).assume_utc(),
@@ -627,7 +627,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration4() {
+    fn test_timetable_iteration_first_week_no_weekdays() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
@@ -658,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration5() {
+    fn test_timetable_iteration_first_week_only1() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
@@ -686,7 +686,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration6() {
+    fn test_timetable_iteration_first_week_only2() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 09 - 14), time!(09:00:00)).assume_utc(),
@@ -714,7 +714,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration7() {
+    fn test_timetable_iteration_second_week_only1() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 27), time!(09:00:00)).assume_utc(),
@@ -742,7 +742,7 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration8() {
+    fn test_timetable_iteration_second_week_only2() {
         use time::{date, time};
         let timetable = Timetable {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
