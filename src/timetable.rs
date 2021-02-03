@@ -793,4 +793,27 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_timetable_iteration_third_week_only2() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 25), time!(09:00:00)).assume_utc(),
+            hours: vec![10],
+            weekdays: Some(vec![Weekday::Tuesday]),
+            weeks: Some(WeekVariant::Third),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 07 - 20), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 09 - 21), time!(10:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
