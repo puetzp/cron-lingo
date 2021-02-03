@@ -81,6 +81,8 @@ impl Iterator for Timetable {
                 let day_addend = {
                     if this_weekday > next_weekday {
                         7 - (this_weekday - next_weekday)
+                    } else if this_weekday == next_weekday && self.base.hour() == next_time.hour() {
+                        7
                     } else {
                         next_weekday - this_weekday
                     }
@@ -764,6 +766,29 @@ mod tests {
             timetable
                 .into_iter()
                 .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_timetable_iteration_third_week_only1() {
+        use time::{date, time};
+        let timetable = Timetable {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
+            hours: vec![10],
+            weekdays: Some(vec![Weekday::Tuesday]),
+            weeks: Some(WeekVariant::Third),
+        };
+        let result: Vec<OffsetDateTime> = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 20), time!(10:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
+        ];
+        assert_eq!(
+            timetable
+                .into_iter()
+                .take(3)
                 .collect::<Vec<OffsetDateTime>>(),
             result
         );
