@@ -4,8 +4,9 @@ use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
-/// A timetable that is built from an expression and can be iterated over
-/// in order to compute the next date(s) that match the specification.
+/// A timetable that is built from an expression and can be iterated
+/// in order to compute the next date(s) that match the specification. The
+/// computation is always based on the current system time.
 /// This is the only way (at this point) to use `Timetable` in a meaningful
 /// way.
 ///
