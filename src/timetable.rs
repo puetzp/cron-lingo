@@ -226,17 +226,17 @@ impl WeekVariant {
             Self::Second => {
                 let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
                 let delta = (date - first_day).whole_days();
-                delta >= 7 && delta < 14
+                (7..14).contains(&delta)
             }
             Self::Third => {
                 let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
                 let delta = (date - first_day).whole_days();
-                delta >= 14 && delta < 21
+                (14..21).contains(&delta)
             }
             Self::Fourth => {
                 let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
                 let delta = (date - first_day).whole_days();
-                delta >= 21 && delta < 28
+                (21..28).contains(&delta)
             }
         }
     }
@@ -441,7 +441,7 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
                     "second" => Ok(Some(WeekVariant::Second)),
                     "third" => Ok(Some(WeekVariant::Third)),
                     "fourth" => Ok(Some(WeekVariant::Fourth)),
-                    _ => return Err(InvalidExpressionError::InvalidWeekSpec),
+                    _ => Err(InvalidExpressionError::InvalidWeekSpec),
                 }
             }
             None => Ok(None),
