@@ -8,4 +8,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.2.0] - 2021-03-15
 ### Changed
-- `Timetable` does not implement `Iterator` directly anymore. Instead a wrapper struct `TimetableIter` is returned that keeps track of state when `iter()` is called.
+- `Timetable` does not implement `Iterator` anymore. Instead `.iter()` returns a wrapper struct `TimetableIter` that keeps track of state during iteration.
