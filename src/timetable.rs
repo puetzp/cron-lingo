@@ -32,6 +32,14 @@ impl Timetable {
     pub fn new(expression: &str) -> Result<Self, InvalidExpressionError> {
         Timetable::from_str(expression)
     }
+
+    #[allow(dead_code)]
+    pub fn iter(&self) -> TimetableIter {
+        TimetableIter {
+            timetable: &self,
+            current: self.base.clone(),
+        }
+    }
 }
 
 impl FromStr for Timetable {
@@ -48,32 +56,43 @@ impl FromStr for Timetable {
     }
 }
 
-impl Iterator for Timetable {
+/// A wrapper around `Timetable` that keeps track of state during iteration.
+pub struct TimetableIter<'a> {
+    timetable: &'a Timetable,
+    current: OffsetDateTime,
+}
+
+impl<'a> Iterator for TimetableIter<'a> {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
         let now = OffsetDateTime::try_now_local().unwrap();
 
-        if now > self.base {
-            self.base = now;
+        if now > self.current {
+            self.current = now;
         }
 
-        let (mut next_date, next_time) = match &self.weekdays {
+        let (mut next_date, next_time) = match &self.timetable.weekdays {
             Some(weekdays) => {
-                let this_weekday = self.base.weekday().number_days_from_monday().into();
+                let this_weekday = self.current.weekday().number_days_from_monday().into();
 
                 let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
-                    match self.hours.iter().find(|&&x| x > self.base.hour()) {
+                    match self
+                        .timetable
+                        .hours
+                        .iter()
+                        .find(|&&x| x > self.current.hour())
+                    {
                         Some(n) => (*n, this_weekday),
                         None => match weekdays.iter().find(|&&x| x > this_weekday) {
-                            Some(wd) => (self.hours[0], *wd),
-                            None => (self.hours[0], weekdays[0]),
+                            Some(wd) => (self.timetable.hours[0], *wd),
+                            None => (self.timetable.hours[0], weekdays[0]),
                         },
                     }
                 } else {
                     match weekdays.iter().find(|&&x| x > this_weekday) {
-                        Some(wd) => (self.hours[0], *wd),
-                        None => (self.hours[0], weekdays[0]),
+                        Some(wd) => (self.timetable.hours[0], *wd),
+                        None => (self.timetable.hours[0], weekdays[0]),
                     }
                 };
 
@@ -82,31 +101,38 @@ impl Iterator for Timetable {
                 let day_addend = {
                     if this_weekday > next_weekday {
                         7 - (this_weekday - next_weekday)
-                    } else if this_weekday == next_weekday && self.base.hour() >= next_time.hour() {
+                    } else if this_weekday == next_weekday
+                        && self.current.hour() >= next_time.hour()
+                    {
                         7
                     } else {
                         next_weekday - this_weekday
                     }
                 };
 
-                let next_date = self.base.date() + Duration::days(day_addend.into());
+                let next_date = self.current.date() + Duration::days(day_addend.into());
 
                 (next_date, next_time)
             }
-            None => match self.hours.iter().find(|&&x| x > self.base.hour()) {
+            None => match self
+                .timetable
+                .hours
+                .iter()
+                .find(|&&x| x > self.current.hour())
+            {
                 Some(h) => {
                     let next_time = Time::try_from_hms(*h, 0, 0).unwrap();
-                    (self.base.date(), next_time)
+                    (self.current.date(), next_time)
                 }
                 None => {
-                    let next_time = Time::try_from_hms(self.hours[0], 0, 0).unwrap();
-                    let next_date = self.base.date() + Duration::day();
+                    let next_time = Time::try_from_hms(self.timetable.hours[0], 0, 0).unwrap();
+                    let next_date = self.current.date() + Duration::day();
                     (next_date, next_time)
                 }
             },
         };
 
-        if let Some(week) = &self.weeks {
+        if let Some(week) = &self.timetable.weeks {
             match week {
                 WeekVariant::Even | WeekVariant::Odd => {
                     if !week.contains(next_date) {
@@ -116,7 +142,7 @@ impl Iterator for Timetable {
                 WeekVariant::First => {
                     if !week.contains(next_date) {
                         let base = get_first_of_next_month(next_date);
-                        next_date = compute_next_date(base, &self.weekdays);
+                        next_date = compute_next_date(base, &self.timetable.weekdays);
                     }
                 }
                 WeekVariant::Second => {
@@ -126,12 +152,12 @@ impl Iterator for Timetable {
 
                         if end_of_first < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(7);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(7);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         }
                     }
                 }
@@ -142,12 +168,12 @@ impl Iterator for Timetable {
 
                         if end_of_second < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(14);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(14);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         }
                     }
                 }
@@ -158,12 +184,12 @@ impl Iterator for Timetable {
 
                         if end_of_third < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(21);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(21);
-                            next_date = compute_next_date(base, &self.weekdays);
+                            next_date = compute_next_date(base, &self.timetable.weekdays);
                         }
                     }
                 }
@@ -171,9 +197,9 @@ impl Iterator for Timetable {
         }
 
         let next_date_time =
-            PrimitiveDateTime::new(next_date, next_time).assume_offset(self.base.offset());
+            PrimitiveDateTime::new(next_date, next_time).assume_offset(self.current.offset());
 
-        self.base = next_date_time;
+        self.current = next_date_time;
 
         Some(next_date_time)
     }
@@ -572,10 +598,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(18:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(5)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(5).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -584,24 +607,21 @@ mod tests {
     fn test_timetable_iteration_full_spec_even2() {
         use time::{date, time};
         let timetable = Timetable {
-            base: PrimitiveDateTime::new(date!(2021 - 02 - 16), time!(08:24:47)).assume_utc(),
+            base: PrimitiveDateTime::new(date!(2021 - 08 - 10), time!(08:24:47)).assume_utc(),
             hours: vec![12],
             weekdays: Some(vec![Weekday::Friday, Weekday::Sunday]),
             weeks: Some(WeekVariant::Even),
         };
         let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 02 - 26), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 02 - 28), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 03 - 12), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 03 - 14), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 03 - 26), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 03 - 28), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 13), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 15), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 27), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 08 - 29), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 09 - 10), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 09 - 12), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(6)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(6).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -621,10 +641,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -652,10 +669,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(11)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(11).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -680,10 +694,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -708,10 +719,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -736,10 +744,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -764,10 +769,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -787,10 +789,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -810,10 +809,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 09 - 21), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -833,10 +829,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 10 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -856,10 +849,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -890,10 +880,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable
-                .into_iter()
-                .take(14)
-                .collect::<Vec<OffsetDateTime>>(),
+            timetable.iter().take(14).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }

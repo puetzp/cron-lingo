@@ -12,7 +12,7 @@ use cron_lingo::Timetable;
 fn main() {
     let timetable = Timetable::new("at 7 o'clock on Tuesday in odd weeks").unwrap();
 
-    for date in timetable.into_iter().take(5) {
+    for date in timetable.iter().take(5) {
         println!("{}", date);
     }
 }

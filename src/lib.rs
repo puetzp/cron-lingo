@@ -12,7 +12,7 @@
 //!
 //! let expr = "at 9 o'clock on Monday and Friday";
 //! let timetable = Timetable::new(expr).unwrap();
-//! assert!(timetable.into_iter().next().is_some());
+//! assert!(timetable.iter().next().is_some());
 //! ```
 //!
 //! # Expression syntax
