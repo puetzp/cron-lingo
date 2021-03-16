@@ -21,18 +21,6 @@ pub struct Timetable {
 }
 
 impl Timetable {
-    /// Attempt to create a new `Timetable` object from an expression.
-    ///
-    /// ```rust
-    /// use cron_lingo::Timetable;
-    ///
-    /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
-    /// assert!(Timetable::new(expr).is_ok());
-    /// ```
-    pub fn new(expression: &str) -> Result<Self, InvalidExpressionError> {
-        Timetable::from_str(expression)
-    }
-
     #[allow(dead_code)]
     pub fn iter(&self) -> TimetableIter {
         TimetableIter {
@@ -45,6 +33,15 @@ impl Timetable {
 impl FromStr for Timetable {
     type Err = InvalidExpressionError;
 
+    /// Attempt to create a new `Timetable` object from an expression.
+    ///
+    /// ```rust
+    /// use cron_lingo::Timetable;
+    /// use std::str::FromStr;
+    ///
+    /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
+    /// assert!(Timetable::from_str(expr).is_ok());
+    /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Timetable {
             base: OffsetDateTime::try_now_local().unwrap(),
@@ -482,7 +479,7 @@ mod tests {
     #[test]
     fn test_complete_timetable() {
         let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in the first week of the month";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 7, 8, 14));
         assert_eq!(
             timetable.weekdays,
@@ -494,7 +491,7 @@ mod tests {
     #[test]
     fn test_timetable_without_week_spec() {
         let expression = "at 6, 15 o'clock on Friday";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 15));
         assert_eq!(timetable.weekdays, Some(vec!(Weekday::Friday)));
         assert_eq!(timetable.weeks, None);
@@ -503,7 +500,7 @@ mod tests {
     #[test]
     fn test_timetable_hours_only() {
         let expression = "at 6, 23 o'clock";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 23));
         assert_eq!(timetable.weekdays, None);
         assert_eq!(timetable.weeks, None);
@@ -512,7 +509,7 @@ mod tests {
     #[test]
     fn test_timetable_every_hour() {
         let expression = "at every hour";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, (0..=23).collect::<Vec<u8>>());
         assert_eq!(timetable.weekdays, None);
         assert_eq!(timetable.weeks, None);
@@ -521,7 +518,7 @@ mod tests {
     #[test]
     fn test_timetable_without_weekday_spec() {
         let expression = "at 6, 23 o'clock in odd weeks";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 23));
         assert_eq!(timetable.weekdays, None);
         assert_eq!(timetable.weeks, Some(WeekVariant::Odd));
@@ -530,7 +527,7 @@ mod tests {
     #[test]
     fn test_timetable_with_specific_weeks() {
         let expression = "at 6, 23 o'clock in the fourth  week of the month";
-        let timetable = Timetable::new(expression).unwrap();
+        let timetable = Timetable::from_str(expression).unwrap();
         assert_eq!(timetable.hours, vec!(6, 23));
         assert_eq!(timetable.weekdays, None);
         assert_eq!(timetable.weeks, Some(WeekVariant::Fourth));

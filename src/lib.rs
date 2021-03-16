@@ -9,9 +9,10 @@
 //! # Example
 //! ```rust
 //! use cron_lingo::Timetable;
+//! use std::str::FromStr;
 //!
 //! let expr = "at 9 o'clock on Monday and Friday";
-//! let timetable = Timetable::new(expr).unwrap();
+//! let timetable = Timetable::from_str(expr).unwrap();
 //! assert!(timetable.iter().next().is_some());
 //! ```
 //!
