@@ -8,9 +8,10 @@ The main goal is to provide a more predictable way for e.g. schedulling critical
 
 ```rust
 use cron_lingo::Timetable;
+use std::str::FromStr;
 
 fn main() {
-    let timetable = Timetable::new("at 7 o'clock on Tuesday in odd weeks").unwrap();
+    let timetable = Timetable::from_str("at 7 o'clock on Tuesday in odd weeks").unwrap();
 
     for date in timetable.iter().take(5) {
         println!("{}", date);
