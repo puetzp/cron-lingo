@@ -4,6 +4,7 @@ version = "0.2.0"
 authors = ["Peter Sebastian Pütz <ppuetz@protonmail.com>"]
 edition = "2018"
 repository = "https://github.com/puetzp/cron-lingo"
+documentation = "https://docs.rs/cron-lingo"
 readme = "README.md"
 license = "MIT"
 description = "Alternative cron-like expression parser for schedulling"
