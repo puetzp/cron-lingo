@@ -64,12 +64,6 @@ impl Iterator for ScheduleIter {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let now = OffsetDateTime::try_now_local().unwrap();
-
-        if now > self.current {
-            self.current = now;
-        }
-
         let (mut next_date, next_time) = match &self.schedule.weekdays {
             Some(weekdays) => {
                 let this_weekday = self.current.weekday().number_days_from_monday().into();
