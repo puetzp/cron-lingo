@@ -26,6 +26,7 @@ impl Schedule {
         ScheduleIter {
             schedule: self.clone(),
             current: self.base.clone(),
+            skip_outdated: true,
         }
     }
 }
@@ -62,12 +63,31 @@ impl FromStr for Schedule {
 pub struct ScheduleIter {
     schedule: Schedule,
     current: OffsetDateTime,
+    skip_outdated: bool,
+}
+
+impl ScheduleIter {
+    /// By default the `next` method will not return a date that is
+    /// in the past but compute the next future date based on the
+    /// current local time instead. This method allows to change the
+    /// iterators default behaviour.
+    pub fn skip_outdated(&mut self, skip: bool) {
+        self.skip_outdated = skip;
+    }
 }
 
 impl Iterator for ScheduleIter {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.skip_outdated {
+            let now = OffsetDateTime::try_now_local().unwrap();
+
+            if now > self.current {
+                self.current = now;
+            }
+        }
+
         let (mut next_date, next_time) = match &self.schedule.weekdays {
             Some(weekdays) => {
                 let this_weekday = self.current.weekday().number_days_from_monday().into();
