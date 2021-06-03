@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.0] - 2021-06-03
 ### Changed
 - Rename Timetable to Schedule
+- Calling next() on ScheduleIter will not set the current iteration base to now() if now() is greater than the base, so stopping the iteration for some time and then resuming may return an OffsetDateTime from the past
 
 ## [0.2.2] - 2021-05-25
 ### Changed
