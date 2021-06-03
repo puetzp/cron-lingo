@@ -8,12 +8,12 @@
 //!
 //! # Example
 //! ```rust
-//! use cron_lingo::Timetable;
+//! use cron_lingo::Schedule;
 //! use std::str::FromStr;
 //!
 //! let expr = "at 9 o'clock on Monday and Friday";
-//! let timetable = Timetable::from_str(expr).unwrap();
-//! assert!(timetable.iter().next().is_some());
+//! let schedule = Schedule::from_str(expr).unwrap();
+//! assert!(schedule.iter().next().is_some());
 //! ```
 //!
 //! # Expression syntax
@@ -45,6 +45,6 @@
 //! (assuming now is a Sunday in an even week) return a `time::OffsetDateTime` for the next seven
 //! days ... and then put in a break for the following week.
 pub mod error;
-pub mod timetable;
+pub mod schedule;
 
-pub use self::timetable::Timetable;
+pub use self::schedule::Schedule;

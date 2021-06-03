@@ -4,46 +4,46 @@ use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
-/// A timetable that is built from an expression and can be iterated
+/// A schedule that is built from an expression and can be iterated
 /// in order to compute the next date(s) that match the specification. The
 /// computation is always based on the current system time.
-/// This is the only way (at this point) to use `Timetable` in a meaningful
+/// This is the only way (at this point) to use `Schedule` in a meaningful
 /// way.
 ///
 /// The expression must adhere to a specific syntax. See the module-level
 /// documentation for the full range of possibilities.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Timetable {
+pub struct Schedule {
     base: OffsetDateTime,
     hours: Vec<u8>,
     weekdays: Option<Vec<Weekday>>,
     weeks: Option<WeekVariant>,
 }
 
-impl Timetable {
+impl Schedule {
     #[allow(dead_code)]
-    pub fn iter(&self) -> TimetableIter {
-        TimetableIter {
-            timetable: self.clone(),
+    pub fn iter(&self) -> ScheduleIter {
+        ScheduleIter {
+            schedule: self.clone(),
             current: self.base.clone(),
         }
     }
 }
 
-impl FromStr for Timetable {
+impl FromStr for Schedule {
     type Err = InvalidExpressionError;
 
-    /// Attempt to create a new `Timetable` object from an expression.
+    /// Attempt to create a new `Schedule` object from an expression.
     ///
     /// ```rust
-    /// use cron_lingo::Timetable;
+    /// use cron_lingo::Schedule;
     /// use std::str::FromStr;
     ///
     /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
-    /// assert!(Timetable::from_str(expr).is_ok());
+    /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
-        let tt = Timetable {
+        let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
             hours: parse_hours(expression)?,
             weekdays: parse_weekdays(expression)?,
@@ -53,14 +53,14 @@ impl FromStr for Timetable {
     }
 }
 
-/// A wrapper around `Timetable` that keeps track of state during iteration.
+/// A wrapper around `Schedule` that keeps track of state during iteration.
 #[derive(Clone)]
-pub struct TimetableIter {
-    timetable: Timetable,
+pub struct ScheduleIter {
+    schedule: Schedule,
     current: OffsetDateTime,
 }
 
-impl Iterator for TimetableIter {
+impl Iterator for ScheduleIter {
     type Item = OffsetDateTime;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -70,27 +70,27 @@ impl Iterator for TimetableIter {
             self.current = now;
         }
 
-        let (mut next_date, next_time) = match &self.timetable.weekdays {
+        let (mut next_date, next_time) = match &self.schedule.weekdays {
             Some(weekdays) => {
                 let this_weekday = self.current.weekday().number_days_from_monday().into();
 
                 let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
                     match self
-                        .timetable
+                        .schedule
                         .hours
                         .iter()
                         .find(|&&x| x > self.current.hour())
                     {
                         Some(n) => (*n, this_weekday),
                         None => match weekdays.iter().find(|&&x| x > this_weekday) {
-                            Some(wd) => (self.timetable.hours[0], *wd),
-                            None => (self.timetable.hours[0], weekdays[0]),
+                            Some(wd) => (self.schedule.hours[0], *wd),
+                            None => (self.schedule.hours[0], weekdays[0]),
                         },
                     }
                 } else {
                     match weekdays.iter().find(|&&x| x > this_weekday) {
-                        Some(wd) => (self.timetable.hours[0], *wd),
-                        None => (self.timetable.hours[0], weekdays[0]),
+                        Some(wd) => (self.schedule.hours[0], *wd),
+                        None => (self.schedule.hours[0], weekdays[0]),
                     }
                 };
 
@@ -113,7 +113,7 @@ impl Iterator for TimetableIter {
                 (next_date, next_time)
             }
             None => match self
-                .timetable
+                .schedule
                 .hours
                 .iter()
                 .find(|&&x| x > self.current.hour())
@@ -123,14 +123,14 @@ impl Iterator for TimetableIter {
                     (self.current.date(), next_time)
                 }
                 None => {
-                    let next_time = Time::try_from_hms(self.timetable.hours[0], 0, 0).unwrap();
+                    let next_time = Time::try_from_hms(self.schedule.hours[0], 0, 0).unwrap();
                     let next_date = self.current.date() + Duration::day();
                     (next_date, next_time)
                 }
             },
         };
 
-        if let Some(week) = &self.timetable.weeks {
+        if let Some(week) = &self.schedule.weeks {
             match week {
                 WeekVariant::Even | WeekVariant::Odd => {
                     if !week.contains(next_date) {
@@ -140,7 +140,7 @@ impl Iterator for TimetableIter {
                 WeekVariant::First => {
                     if !week.contains(next_date) {
                         let base = get_first_of_next_month(next_date);
-                        next_date = compute_next_date(base, &self.timetable.weekdays);
+                        next_date = compute_next_date(base, &self.schedule.weekdays);
                     }
                 }
                 WeekVariant::Second => {
@@ -150,12 +150,12 @@ impl Iterator for TimetableIter {
 
                         if end_of_first < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(7);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(7);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         }
                     }
                 }
@@ -166,12 +166,12 @@ impl Iterator for TimetableIter {
 
                         if end_of_second < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(14);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(14);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         }
                     }
                 }
@@ -182,12 +182,12 @@ impl Iterator for TimetableIter {
 
                         if end_of_third < next_date {
                             let base = get_first_of_next_month(next_date) + Duration::days(21);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         } else {
                             let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
                                 .unwrap()
                                 + Duration::days(21);
-                            next_date = compute_next_date(base, &self.timetable.weekdays);
+                            next_date = compute_next_date(base, &self.schedule.weekdays);
                         }
                     }
                 }
@@ -478,60 +478,60 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_complete_timetable() {
+    fn test_complete_schedule() {
         let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in the first week of the month";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, vec!(6, 7, 8, 14));
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, vec!(6, 7, 8, 14));
         assert_eq!(
-            timetable.weekdays,
+            schedule.weekdays,
             Some(vec!(Weekday::Monday, Weekday::Thursday, Weekday::Saturday))
         );
-        assert_eq!(timetable.weeks, Some(WeekVariant::First));
+        assert_eq!(schedule.weeks, Some(WeekVariant::First));
     }
 
     #[test]
-    fn test_timetable_without_week_spec() {
+    fn test_schedule_without_week_spec() {
         let expression = "at 6, 15 o'clock on Friday";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, vec!(6, 15));
-        assert_eq!(timetable.weekdays, Some(vec!(Weekday::Friday)));
-        assert_eq!(timetable.weeks, None);
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, vec!(6, 15));
+        assert_eq!(schedule.weekdays, Some(vec!(Weekday::Friday)));
+        assert_eq!(schedule.weeks, None);
     }
 
     #[test]
-    fn test_timetable_hours_only() {
+    fn test_schedule_hours_only() {
         let expression = "at 6, 23 o'clock";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, vec!(6, 23));
-        assert_eq!(timetable.weekdays, None);
-        assert_eq!(timetable.weeks, None);
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, vec!(6, 23));
+        assert_eq!(schedule.weekdays, None);
+        assert_eq!(schedule.weeks, None);
     }
 
     #[test]
-    fn test_timetable_every_hour() {
+    fn test_schedule_every_hour() {
         let expression = "at every hour";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, (0..=23).collect::<Vec<u8>>());
-        assert_eq!(timetable.weekdays, None);
-        assert_eq!(timetable.weeks, None);
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, (0..=23).collect::<Vec<u8>>());
+        assert_eq!(schedule.weekdays, None);
+        assert_eq!(schedule.weeks, None);
     }
 
     #[test]
-    fn test_timetable_without_weekday_spec() {
+    fn test_schedule_without_weekday_spec() {
         let expression = "at 6, 23 o'clock in odd weeks";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, vec!(6, 23));
-        assert_eq!(timetable.weekdays, None);
-        assert_eq!(timetable.weeks, Some(WeekVariant::Odd));
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, vec!(6, 23));
+        assert_eq!(schedule.weekdays, None);
+        assert_eq!(schedule.weeks, Some(WeekVariant::Odd));
     }
 
     #[test]
-    fn test_timetable_with_specific_weeks() {
+    fn test_schedule_with_specific_weeks() {
         let expression = "at 6, 23 o'clock in the fourth  week of the month";
-        let timetable = Timetable::from_str(expression).unwrap();
-        assert_eq!(timetable.hours, vec!(6, 23));
-        assert_eq!(timetable.weekdays, None);
-        assert_eq!(timetable.weeks, Some(WeekVariant::Fourth));
+        let schedule = Schedule::from_str(expression).unwrap();
+        assert_eq!(schedule.hours, vec!(6, 23));
+        assert_eq!(schedule.weekdays, None);
+        assert_eq!(schedule.weeks, Some(WeekVariant::Fourth));
     }
 
     #[test]
@@ -580,9 +580,9 @@ mod tests {
     }
 
     #[test]
-    fn test_timetable_iteration_full_spec_even1() {
+    fn test_schedule_iteration_full_spec_even1() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(15:00:00)).assume_utc(),
             hours: vec![6, 18],
             weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
@@ -596,15 +596,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(18:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(5).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(5).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_full_spec_even2() {
+    fn test_schedule_iteration_full_spec_even2() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 08 - 10), time!(08:24:47)).assume_utc(),
             hours: vec![12],
             weekdays: Some(vec![Weekday::Friday, Weekday::Sunday]),
@@ -619,15 +619,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 09 - 12), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(6).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(6).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_no_weekdays() {
+    fn test_schedule_iteration_no_weekdays() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(08:24:47)).assume_utc(),
             hours: vec![6, 12],
             weekdays: None,
@@ -639,15 +639,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_first_week_no_weekdays() {
+    fn test_schedule_iteration_first_week_no_weekdays() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
             hours: vec![6, 12],
             weekdays: None,
@@ -667,15 +667,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(11).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(11).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_first_week_only1() {
+    fn test_schedule_iteration_first_week_only1() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
             hours: vec![6, 12],
             weekdays: Some(vec![Weekday::Wednesday, Weekday::Sunday]),
@@ -692,15 +692,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_first_week_only2() {
+    fn test_schedule_iteration_first_week_only2() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 09 - 14), time!(09:00:00)).assume_utc(),
             hours: vec![6, 12],
             weekdays: Some(vec![Weekday::Monday, Weekday::Friday]),
@@ -717,15 +717,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_second_week_only1() {
+    fn test_schedule_iteration_second_week_only1() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 27), time!(09:00:00)).assume_utc(),
             hours: vec![9, 23],
             weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
@@ -742,15 +742,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_second_week_only2() {
+    fn test_schedule_iteration_second_week_only2() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
             hours: vec![9, 23],
             weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
@@ -767,15 +767,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_third_week_only1() {
+    fn test_schedule_iteration_third_week_only1() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
             hours: vec![10],
             weekdays: Some(vec![Weekday::Tuesday]),
@@ -787,15 +787,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_third_week_only2() {
+    fn test_schedule_iteration_third_week_only2() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 06 - 25), time!(09:00:00)).assume_utc(),
             hours: vec![10],
             weekdays: Some(vec![Weekday::Tuesday]),
@@ -807,15 +807,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 09 - 21), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_fourth_week_only1() {
+    fn test_schedule_iteration_fourth_week_only1() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(09:00:00)).assume_utc(),
             hours: vec![10],
             weekdays: Some(vec![Weekday::Thursday]),
@@ -827,15 +827,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 10 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_fourth_week_only2() {
+    fn test_schedule_iteration_fourth_week_only2() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 05 - 28), time!(09:00:00)).assume_utc(),
             hours: vec![10],
             weekdays: Some(vec![Weekday::Thursday]),
@@ -846,15 +846,15 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(2).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(2).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
 
     #[test]
-    fn test_timetable_iteration_fourth_week_only_no_weekdays() {
+    fn test_schedule_iteration_fourth_week_only_no_weekdays() {
         use time::{date, time};
-        let timetable = Timetable {
+        let schedule = Schedule {
             base: PrimitiveDateTime::new(date!(2021 - 05 - 28), time!(09:00:00)).assume_utc(),
             hours: vec![10],
             weekdays: None,
@@ -871,7 +871,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            timetable.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
