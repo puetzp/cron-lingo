@@ -43,6 +43,10 @@ impl FromStr for Schedule {
     /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
+        if expression.is_empty() {
+            return Err(InvalidExpressionError::EmptyExpression.into());
+        }
+
         let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
             hours: parse_hours(expression)?,
@@ -470,6 +474,12 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_empty_expression() {
+        let result = Schedule::from_str("").unwrap_err();
+        assert_eq!(result, InvalidExpressionError::EmptyExpression);
+    }
 
     #[test]
     fn test_complete_schedule() {
