@@ -621,7 +621,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(18:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(5).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(5)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -644,7 +648,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 09 - 12), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(6).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(6)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -664,7 +672,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -692,7 +704,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(11).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(11)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -717,7 +733,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -742,7 +762,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(12:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -767,7 +791,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -792,7 +820,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -812,7 +844,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -832,7 +868,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 09 - 21), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -852,7 +892,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 10 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(3).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -871,7 +915,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(2).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(2)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
@@ -896,7 +944,11 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(10:00:00)).assume_utc(),
         ];
         assert_eq!(
-            schedule.iter().take(8).collect::<Vec<OffsetDateTime>>(),
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
             result
         );
     }
