@@ -4,7 +4,7 @@ A small Rust library to parse a cron-like, human-readable expression like "at 6 
 
 The main goal is to provide a more predictable way for e.g. schedulling critical tasks by getting rid of some core functionality of standard cron. Also the expression syntax is self-explanatory to a large extent, which may present a useful side-effect if you are planning to expose the configuration of some scheduler to non-technical staff.
 
-## Small example
+## Example
 
 ```rust
 use cron_lingo::Timetable;
