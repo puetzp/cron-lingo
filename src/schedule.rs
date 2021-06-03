@@ -71,8 +71,9 @@ impl ScheduleIter {
     /// in the past but compute the next future date based on the
     /// current local time instead. This method allows to change the
     /// iterators default behaviour.
-    pub fn skip_outdated(&mut self, skip: bool) {
+    pub fn skip_outdated(mut self, skip: bool) -> ScheduleIter {
         self.skip_outdated = skip;
+        self
     }
 }
 
