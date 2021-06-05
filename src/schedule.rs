@@ -594,6 +594,15 @@ mod tests {
     }
 
     #[test]
+    fn test_parse_days_for_duplicate_error() {
+        let expression = "Monday, Monday and Thursday";
+        assert_eq!(
+            parse_days(expression).unwrap_err(),
+            InvalidExpressionError::DuplicateInput
+        );
+    }
+
+    #[test]
     fn test_schedule_iteration_full_spec_even1() {
         use time::{date, time};
         let schedule = Schedule {
