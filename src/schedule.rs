@@ -289,6 +289,43 @@ impl WeekVariant {
     }
 }
 
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
+enum WeekdayModifier {
+    First,
+    Second,
+    Third,
+    Fourth,
+    None,
+}
+
+/*
+impl WeekVariant {
+    fn contains(self, date: Date) -> bool {
+        match self {
+            Self::First => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                (date - first_day).whole_days() < 7
+            }
+            Self::Second => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                (7..14).contains(&delta)
+            }
+            Self::Third => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                (14..21).contains(&delta)
+            }
+            Self::Fourth => {
+                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
+                let delta = (date - first_day).whole_days();
+                (21..28).contains(&delta)
+            }
+        }
+    }
+}
+*/
+
 struct DateSpec {
     hours: Vec<Time>,
     days: Option<Vec<Weekday>>,
@@ -296,25 +333,25 @@ struct DateSpec {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Weekday {
-    Monday,
-    Tuesday,
-    Wednesday,
-    Thursday,
-    Friday,
-    Saturday,
-    Sunday,
+    Monday(WeekdayModifier),
+    Tuesday(WeekdayModifier),
+    Wednesday(WeekdayModifier),
+    Thursday(WeekdayModifier),
+    Friday(WeekdayModifier),
+    Saturday(WeekdayModifier),
+    Sunday(WeekdayModifier),
 }
 
 impl From<time::Weekday> for Weekday {
     fn from(weekday: time::Weekday) -> Self {
         match weekday {
-            time::Weekday::Monday => Weekday::Monday,
-            time::Weekday::Tuesday => Weekday::Tuesday,
-            time::Weekday::Wednesday => Weekday::Wednesday,
-            time::Weekday::Thursday => Weekday::Thursday,
-            time::Weekday::Friday => Weekday::Friday,
-            time::Weekday::Saturday => Weekday::Saturday,
-            time::Weekday::Sunday => Weekday::Sunday,
+            time::Weekday::Monday => Weekday::Monday(WeekdayModifier::None),
+            time::Weekday::Tuesday => Weekday::Tuesday(WeekdayModifier::None),
+            time::Weekday::Wednesday => Weekday::Wednesday(WeekdayModifier::None),
+            time::Weekday::Thursday => Weekday::Thursday(WeekdayModifier::None),
+            time::Weekday::Friday => Weekday::Friday(WeekdayModifier::None),
+            time::Weekday::Saturday => Weekday::Saturday(WeekdayModifier::None),
+            time::Weekday::Sunday => Weekday::Sunday(WeekdayModifier::None),
         }
     }
 }
@@ -322,13 +359,13 @@ impl From<time::Weekday> for Weekday {
 impl From<Weekday> for u8 {
     fn from(weekday: Weekday) -> Self {
         match weekday {
-            Weekday::Monday => 0,
-            Weekday::Tuesday => 1,
-            Weekday::Wednesday => 2,
-            Weekday::Thursday => 3,
-            Weekday::Friday => 4,
-            Weekday::Saturday => 5,
-            Weekday::Sunday => 6,
+            Weekday::Monday(_) => 0,
+            Weekday::Tuesday(_) => 1,
+            Weekday::Wednesday(_) => 2,
+            Weekday::Thursday(_) => 3,
+            Weekday::Friday(_) => 4,
+            Weekday::Saturday(_) => 5,
+            Weekday::Sunday(_) => 6,
         }
     }
 }
@@ -336,13 +373,13 @@ impl From<Weekday> for u8 {
 impl From<u8> for Weekday {
     fn from(num: u8) -> Self {
         match num {
-            0 => Weekday::Monday,
-            1 => Weekday::Tuesday,
-            2 => Weekday::Wednesday,
-            3 => Weekday::Thursday,
-            4 => Weekday::Friday,
-            5 => Weekday::Saturday,
-            6 => Weekday::Sunday,
+            0 => Weekday::Monday(WeekdayModifier::None),
+            1 => Weekday::Tuesday(WeekdayModifier::None),
+            2 => Weekday::Wednesday(WeekdayModifier::None),
+            3 => Weekday::Thursday(WeekdayModifier::None),
+            4 => Weekday::Friday(WeekdayModifier::None),
+            5 => Weekday::Saturday(WeekdayModifier::None),
+            6 => Weekday::Sunday(WeekdayModifier::None),
             _ => unreachable!(),
         }
     }
@@ -466,14 +503,32 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
     let mut days = Vec::new();
 
     for item in expression.replace("and", ",").split(',') {
+        let (item, modifier) = if item.starts_with("the first") {
+            (item.trim_start_matches("the first"), WeekdayModifier::First)
+        } else if item.starts_with("the second") {
+            (
+                item.trim_start_matches("the second"),
+                WeekdayModifier::Second,
+            )
+        } else if item.starts_with("the third") {
+            (item.trim_start_matches("the third"), WeekdayModifier::Third)
+        } else if item.starts_with("the fourth") {
+            (
+                item.trim_start_matches("the fourth"),
+                WeekdayModifier::Fourth,
+            )
+        } else {
+            (item, WeekdayModifier::None)
+        };
+
         let day = match item.trim() {
-            "Monday" => Weekday::Monday,
-            "Tuesday" => Weekday::Tuesday,
-            "Wednesday" => Weekday::Wednesday,
-            "Thursday" => Weekday::Thursday,
-            "Friday" => Weekday::Friday,
-            "Saturday" => Weekday::Saturday,
-            "Sunday" => Weekday::Sunday,
+            "Monday" => Weekday::Monday(modifier),
+            "Tuesday" => Weekday::Tuesday(modifier),
+            "Wednesday" => Weekday::Wednesday(modifier),
+            "Thursday" => Weekday::Thursday(modifier),
+            "Friday" => Weekday::Friday(modifier),
+            "Saturday" => Weekday::Saturday(modifier),
+            "Sunday" => Weekday::Sunday(modifier),
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
@@ -589,7 +644,11 @@ mod tests {
     #[test]
     fn test_parse_days() {
         let expression = "Monday, Tuesday and Thursday";
-        let result = vec![Weekday::Monday, Weekday::Tuesday, Weekday::Thursday];
+        let result = vec![
+            Weekday::Monday(WeekdayModifier::None),
+            Weekday::Tuesday(WeekdayModifier::None),
+            Weekday::Thursday(WeekdayModifier::None),
+        ];
         assert_eq!(parse_days(expression).unwrap(), result);
     }
 
@@ -603,351 +662,13 @@ mod tests {
     }
 
     #[test]
-    fn test_schedule_iteration_full_spec_even1() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(15:00:00)).assume_utc(),
-            hours: vec![6, 18],
-            weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
-            weeks: Some(WeekVariant::Even),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(18:00:00)).assume_utc(),
+    fn test_parse_days_with_modifiers() {
+        let expression = "the first Monday, Tuesday and the fourth Thursday";
+        let result = vec![
+            Weekday::Monday(WeekdayModifier::First),
+            Weekday::Tuesday(WeekdayModifier::None),
+            Weekday::Thursday(WeekdayModifier::Fourth),
         ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(5)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_full_spec_even2() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 08 - 10), time!(08:24:47)).assume_utc(),
-            hours: vec![12],
-            weekdays: Some(vec![Weekday::Friday, Weekday::Sunday]),
-            weeks: Some(WeekVariant::Even),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 08 - 13), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 15), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 27), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 29), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 09 - 10), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 09 - 12), time!(12:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(6)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_no_weekdays() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(08:24:47)).assume_utc(),
-            hours: vec![6, 12],
-            weekdays: None,
-            weeks: Some(WeekVariant::Even),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 16), time!(12:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_first_week_no_weekdays() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
-            hours: vec![6, 12],
-            weekdays: None,
-            weeks: Some(WeekVariant::First),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 05), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 05), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 06), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 06), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(11)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_first_week_only1() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 07 - 03), time!(08:24:47)).assume_utc(),
-            hours: vec![6, 12],
-            weekdays: Some(vec![Weekday::Wednesday, Weekday::Sunday]),
-            weeks: Some(WeekVariant::First),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 04), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 07), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 01), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 04), time!(12:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_first_week_only2() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 09 - 14), time!(09:00:00)).assume_utc(),
-            hours: vec![6, 12],
-            weekdays: Some(vec![Weekday::Monday, Weekday::Friday]),
-            weeks: Some(WeekVariant::First),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 10 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 10 - 01), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 10 - 04), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 10 - 04), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 11 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 11 - 01), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 11 - 05), time!(12:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_second_week_only1() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 27), time!(09:00:00)).assume_utc(),
-            hours: vec![9, 23],
-            weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
-            weeks: Some(WeekVariant::Second),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 09), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 11), time!(23:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_second_week_only2() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
-            hours: vec![9, 23],
-            weekdays: Some(vec![Weekday::Monday, Weekday::Wednesday]),
-            weeks: Some(WeekVariant::Second),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 12), time!(23:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(09:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 14), time!(23:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_third_week_only1() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 01), time!(09:00:00)).assume_utc(),
-            hours: vec![10],
-            weekdays: Some(vec![Weekday::Tuesday]),
-            weeks: Some(WeekVariant::Third),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 15), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 20), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_third_week_only2() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 25), time!(09:00:00)).assume_utc(),
-            hours: vec![10],
-            weekdays: Some(vec![Weekday::Tuesday]),
-            weeks: Some(WeekVariant::Third),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 20), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 08 - 17), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 09 - 21), time!(10:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_fourth_week_only1() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 07 - 28), time!(09:00:00)).assume_utc(),
-            hours: vec![10],
-            weekdays: Some(vec![Weekday::Thursday]),
-            weeks: Some(WeekVariant::Fourth),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 08 - 26), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 09 - 23), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 10 - 28), time!(10:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_fourth_week_only2() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 05 - 28), time!(09:00:00)).assume_utc(),
-            hours: vec![10],
-            weekdays: Some(vec![Weekday::Thursday]),
-            weeks: Some(WeekVariant::Fourth),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(10:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(2)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
-    }
-
-    #[test]
-    fn test_schedule_iteration_fourth_week_only_no_weekdays() {
-        use time::{date, time};
-        let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 05 - 28), time!(09:00:00)).assume_utc(),
-            hours: vec![10],
-            weekdays: None,
-            weeks: Some(WeekVariant::Fourth),
-        };
-        let result: Vec<OffsetDateTime> = vec![
-            PrimitiveDateTime::new(date!(2021 - 05 - 28), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 22), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 23), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 25), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 26), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 27), time!(10:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(10:00:00)).assume_utc(),
-        ];
-        assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
-                .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
-            result
-        );
+        assert_eq!(parse_days(expression).unwrap(), result);
     }
 }
