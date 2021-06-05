@@ -3,15 +3,14 @@ use std::fmt;
 
 /// A global error type that encapsulates all other, more specific
 /// error types below.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InvalidExpressionError {
     EmptyExpression,
     Syntax,
-    HoursOutOfBounds(HoursOutOfBoundsError),
     DuplicateInput,
     UnknownWeekday,
     InvalidWeekSpec,
-    InvalidHourSpec,
+    InvalidHourSpec(time::ParseError),
     ParseHour,
 }
 
@@ -20,11 +19,10 @@ impl fmt::Display for InvalidExpressionError {
         match self {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
             Self::Syntax => SyntaxError.fmt(f),
-            Self::HoursOutOfBounds(e) => e.fmt(f),
             Self::DuplicateInput => DuplicateInputError.fmt(f),
             Self::UnknownWeekday => UnknownWeekdayError.fmt(f),
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
-            Self::InvalidHourSpec => InvalidHourSpecError.fmt(f),
+            Self::InvalidHourSpec(e) => e.fmt(f),
             Self::ParseHour => ParseHourError.fmt(f),
         }
     }
@@ -55,21 +53,6 @@ impl fmt::Display for SyntaxError {
 }
 
 impl Error for SyntaxError {}
-
-/// This error indicates that the hour spec of an expression contains
-/// invalid input that is not within the range of `(0..=23)`.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct HoursOutOfBoundsError {
-    pub input: u8,
-}
-
-impl fmt::Display for HoursOutOfBoundsError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "at least one value in the expression is out of range, must be between 0 and 23 inclusively, is {}", self.input)
-    }
-}
-
-impl Error for HoursOutOfBoundsError {}
 
 /// This error points to duplicates in the expression, e.g. multiple
 /// occurrences of the same weekday.
@@ -112,8 +95,10 @@ impl Error for InvalidWeekSpecError {}
 
 /// An error indicating that the hour spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InvalidHourSpecError;
+#[derive(Debug, Clone, PartialEq)]
+pub struct InvalidHourSpecError {
+    pub source: time::ParseError,
+}
 
 impl fmt::Display for InvalidHourSpecError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

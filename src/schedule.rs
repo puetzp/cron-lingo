@@ -50,11 +50,11 @@ impl FromStr for Schedule {
 
         let blocks: Vec<&str> = split_expression(expression);
 
-        let specifications: Vec<DateSpec> = blocks.iter().map(|x| parse_block(x)).collect();
+        //let specifications: Vec<DateSpec> = blocks.iter().map(|x| parse_block(x)).collect();
 
         let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
-            hours: parse_hours(expression)?,
+            hours: vec![],
             weekdays: parse_weekdays(expression)?,
             weeks: parse_weeks(expression)?,
         };
@@ -290,7 +290,7 @@ impl WeekVariant {
 }
 
 struct DateSpec {
-    hours: Vec<u8>,
+    hours: Vec<Time>,
     days: Option<Vec<Weekday>>,
 }
 
@@ -377,14 +377,21 @@ fn split_expression(expression: &str) -> Vec<&str> {
 
 // Parse a block (e.g. "at 4 AM and 4 PM on Monday and Thursday") to a DateSpec
 // object.
-fn parse_block(block: &str) -> DateSpec {
+fn parse_block(block: &str) -> Result<DateSpec, InvalidExpressionError> {
     // First check for the existence of a pattern that separates
     // weekdays from time specifications.
-    let (times, days) = split_block(block).unwrap();
-    DateSpec {
-        hours: vec![],
-        days: None,
-    }
+    let (time_block, day_block) = split_block(block)?;
+    let hours = parse_times(time_block)?;
+
+    /*
+    let days = if let Some(d) = day_block {
+        parse_weekdays(d)?
+    } else {
+        None
+    };
+     */
+
+    Ok(DateSpec { hours, days: None })
 }
 
 // Split a block into two parts (time spec and day spec, if any).
@@ -393,7 +400,7 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>), InvalidExpressionErr
         Some(idx) => {
             let (mut times, mut days) = block.split_at(idx);
 
-            times = times.trim();
+            times = times.trim_start_matches("at").trim();
 
             days = days.trim_start_matches("on").trim();
 
@@ -423,57 +430,39 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>), InvalidExpressionErr
 }
 
 // Parse the hour spec of an expression and return a sorted list.
-// Determine the start end end bounds of the relevant part, parse
+// Determine the start and end bounds of the relevant part, parse
 // each comma-separated value and add them to a vector.
-fn parse_hours(expression: &str) -> Result<Vec<u8>, InvalidExpressionError> {
-    let start = match expression.find("at") {
-        Some(start_idx) => start_idx,
-        None => return Err(InvalidExpressionError::InvalidHourSpec),
-    };
+fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
+    if expression == "every full hour" {
+        let mut full_hours = vec![];
 
-    let mut section = if let Some(end_idx) = expression.find("on ") {
-        expression[start + 2..end_idx].trim()
-    } else if let Some(end_idx) = expression.find("in") {
-        expression[start + 2..end_idx].trim()
-    } else {
-        expression[start + 2..].trim()
-    };
-
-    if section == "every hour" {
-        return Ok((0..24).collect());
+        for i in 0..24 {
+            full_hours.push(Time::try_from_hms(i, 0, 0).unwrap());
+        }
+        return Ok(full_hours);
     }
 
-    section = match section.strip_suffix("o'clock") {
-        Some(stripped) => stripped,
-        None => return Err(InvalidExpressionError::InvalidHourSpec),
-    };
+    let expression = expression.replace("and", ",");
 
-    let section = section.replace("and", ",");
+    let mut times = Vec::new();
 
-    let mut hours = Vec::new();
+    for item in expression.split(',').map(|x| x.trim()) {
+        let time = match Time::parse(item, "%-I %P") {
+            Ok(t) => t,
+            Err(_) => Time::parse(item, "%-I:%-M %P")
+                .map_err(|source| InvalidExpressionError::InvalidHourSpec(source))?,
+        };
 
-    for i in section.split(',') {
-        let item = i.trim().to_string();
-
-        match item.parse::<u8>() {
-            Ok(num) => {
-                if hours.contains(&num) {
-                    return Err(InvalidExpressionError::DuplicateInput);
-                } else if !(0..=23).contains(&num) {
-                    return Err(InvalidExpressionError::HoursOutOfBounds(
-                        HoursOutOfBoundsError { input: num },
-                    ));
-                } else {
-                    hours.push(num);
-                }
-            }
-            Err(_) => return Err(InvalidExpressionError::ParseHour),
+        if times.contains(&time) {
+            return Err(InvalidExpressionError::DuplicateInput);
+        } else {
+            times.push(time);
         }
     }
 
-    hours.sort_unstable();
+    times.sort_unstable();
 
-    Ok(hours)
+    Ok(times)
 }
 
 // Parse the weekday spec of an epression and return a sorted list.
@@ -562,6 +551,7 @@ fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressio
 #[cfg(test)]
 mod tests {
     use super::*;
+    use time::time;
 
     #[test]
     fn test_empty_expression() {
@@ -579,7 +569,7 @@ mod tests {
     #[test]
     fn test_split_block() {
         let block = "at 4 PM and 6 PM on Monday and Tuesday";
-        let result = ("at 4 PM and 6 PM", Some("Monday and Tuesday"));
+        let result = ("4 PM and 6 PM", Some("Monday and Tuesday"));
         assert_eq!(split_block(block).unwrap(), result);
     }
 
@@ -589,6 +579,28 @@ mod tests {
         assert_eq!(
             split_block(block).unwrap_err(),
             InvalidExpressionError::Syntax
+        );
+    }
+
+    #[test]
+    fn test_parse_times() {
+        let expression = "1 AM, 5 AM, 4 PM, 5 PM and 6 PM";
+        let result = vec![
+            time!(01:00:00),
+            time!(05:00:00),
+            time!(16:00:00),
+            time!(17:00:00),
+            time!(18:00:00),
+        ];
+        assert_eq!(parse_times(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_times_for_error() {
+        let expression = "1 AM and 5:30";
+        assert_eq!(
+            parse_times(expression).unwrap_err(),
+            InvalidExpressionError::InvalidHourSpec(time::ParseError::UnexpectedEndOfString)
         );
     }
 
@@ -647,24 +659,6 @@ mod tests {
         assert_eq!(schedule.hours, vec!(6, 23));
         assert_eq!(schedule.weekdays, None);
         assert_eq!(schedule.weeks, Some(WeekVariant::Fourth));
-    }
-
-    #[test]
-    fn test_parse_hours_for_out_of_bounds_error() {
-        let expression = "at 6, 15, 24 o'clock on Friday";
-        assert_eq!(
-            parse_hours(expression).unwrap_err(),
-            InvalidExpressionError::HoursOutOfBounds(HoursOutOfBoundsError { input: 24 })
-        );
-    }
-
-    #[test]
-    fn test_parse_hours_for_hour_parsing_error() {
-        let expression = "at 6, 15, 17 18 o'clock on Monday";
-        assert_eq!(
-            parse_hours(expression).unwrap_err(),
-            InvalidExpressionError::ParseHour
-        );
     }
 
     #[test]
