@@ -48,6 +48,10 @@ impl FromStr for Schedule {
             return Err(InvalidExpressionError::EmptyExpression.into());
         }
 
+        let blocks: Vec<&str> = split_expression(expression);
+
+        let specifications: Vec<DateSpec> = blocks.iter().map(|x| parse_block(x)).collect();
+
         let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
             hours: parse_hours(expression)?,
@@ -285,6 +289,11 @@ impl WeekVariant {
     }
 }
 
+struct DateSpec {
+    hours: Vec<u8>,
+    days: Option<Vec<Weekday>>,
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
 enum Weekday {
     Monday,
@@ -352,6 +361,64 @@ impl std::ops::Add for Weekday {
 
     fn add(self, other: Self) -> u8 {
         u8::from(self) + u8::from(other)
+    }
+}
+
+// Split an expression into multiple distinct blocks that may be separated
+// by either ".. and at .." or ".., at ..".
+fn split_expression(expression: &str) -> Vec<&str> {
+    expression
+        .split("and at")
+        .map(|x| x.split(", at").collect::<Vec<&str>>())
+        .flatten()
+        .map(|x| x.trim())
+        .collect::<Vec<&str>>()
+}
+
+// Parse a block (e.g. "at 4 AM and 4 PM on Monday and Thursday") to a DateSpec
+// object.
+fn parse_block(block: &str) -> DateSpec {
+    // First check for the existence of a pattern that separates
+    // weekdays from time specifications.
+    let (times, days) = split_block(block).unwrap();
+    DateSpec {
+        hours: vec![],
+        days: None,
+    }
+}
+
+// Split a block into two parts (time spec and day spec, if any).
+fn split_block(block: &str) -> Result<(&str, Option<&str>), InvalidExpressionError> {
+    match block.find("on ") {
+        Some(idx) => {
+            let (mut times, mut days) = block.split_at(idx);
+
+            times = times.trim();
+
+            days = days.trim_start_matches("on").trim();
+
+            // The day specification must be separated from the
+            // time spec by an "on", but the weekdays in the day
+            // spec itself are only separated by commas/"and"s,
+            // so multiple "on"s are invalid.
+            if days.contains("on ") {
+                return Err(InvalidExpressionError::Syntax);
+            }
+
+            Ok((times, Some(days)))
+        }
+        None => match block.find('(') {
+            Some(start_idx) => match block.find(')') {
+                Some(end_idx) => {
+                    let times = block[..start_idx].trim();
+                    let days = block[start_idx + 1..end_idx].trim();
+
+                    Ok((times, Some(days)))
+                }
+                None => return Err(InvalidExpressionError::Syntax),
+            },
+            None => Ok((block, None)),
+        },
     }
 }
 
@@ -500,6 +567,29 @@ mod tests {
     fn test_empty_expression() {
         let result = Schedule::from_str("").unwrap_err();
         assert_eq!(result, InvalidExpressionError::EmptyExpression);
+    }
+
+    #[test]
+    fn test_split_expression() {
+        let expression = "at 4 PM on Monday, at 6 PM on Thursday and at 3 AM";
+        let result = vec!["at 4 PM on Monday", "6 PM on Thursday", "3 AM"];
+        assert_eq!(split_expression(expression), result);
+    }
+
+    #[test]
+    fn test_split_block() {
+        let block = "at 4 PM and 6 PM on Monday and Tuesday";
+        let result = ("at 4 PM and 6 PM", Some("Monday and Tuesday"));
+        assert_eq!(split_block(block).unwrap(), result);
+    }
+
+    #[test]
+    fn test_split_block_for_error() {
+        let block = "at 4 PM and 6 PM on Monday and on Tuesday";
+        assert_eq!(
+            split_block(block).unwrap_err(),
+            InvalidExpressionError::Syntax
+        );
     }
 
     #[test]

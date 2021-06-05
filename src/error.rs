@@ -6,6 +6,7 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum InvalidExpressionError {
     EmptyExpression,
+    Syntax,
     HoursOutOfBounds(HoursOutOfBoundsError),
     DuplicateInput,
     UnknownWeekday,
@@ -18,6 +19,7 @@ impl fmt::Display for InvalidExpressionError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
+            Self::Syntax => SyntaxError.fmt(f),
             Self::HoursOutOfBounds(e) => e.fmt(f),
             Self::DuplicateInput => DuplicateInputError.fmt(f),
             Self::UnknownWeekday => UnknownWeekdayError.fmt(f),
@@ -41,6 +43,18 @@ impl fmt::Display for EmptyExpressionError {
 }
 
 impl Error for EmptyExpressionError {}
+
+/// Generic syntax error.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SyntaxError;
+
+impl fmt::Display for SyntaxError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "the expression syntax is invalid")
+    }
+}
+
+impl Error for SyntaxError {}
 
 /// This error indicates that the hour spec of an expression contains
 /// invalid input that is not within the range of `(0..=23)`.
