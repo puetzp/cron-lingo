@@ -55,8 +55,8 @@ impl FromStr for Schedule {
         let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
             hours: vec![],
-            weekdays: parse_weekdays(expression)?,
-            weeks: parse_weeks(expression)?,
+            weekdays: None,
+            weeks: None,
         };
         Ok(tt)
     }
@@ -383,15 +383,13 @@ fn parse_block(block: &str) -> Result<DateSpec, InvalidExpressionError> {
     let (time_block, day_block) = split_block(block)?;
     let hours = parse_times(time_block)?;
 
-    /*
     let days = if let Some(d) = day_block {
-        parse_weekdays(d)?
+        Some(parse_days(d)?)
     } else {
         None
     };
-     */
 
-    Ok(DateSpec { hours, days: None })
+    Ok(DateSpec { hours, days })
 }
 
 // Split a block into two parts (time spec and day spec, if any).
@@ -430,8 +428,6 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>), InvalidExpressionErr
 }
 
 // Parse the hour spec of an expression and return a sorted list.
-// Determine the start and end bounds of the relevant part, parse
-// each comma-separated value and add them to a vector.
 fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
     if expression == "every full hour" {
         let mut full_hours = vec![];
@@ -465,25 +461,12 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
     Ok(times)
 }
 
-// Parse the weekday spec of an epression and return a sorted list.
-// Determine the start and end bounds of the relevant part, parse
-// each comma-separated value, map it to a corresponding integer
-// and add it to a vector.
-fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpressionError> {
-    let start = match expression.find("on ") {
-        Some(start_idx) => start_idx,
-        None => return Ok(None),
-    };
+// Parse the weekday spec of an expression and return a sorted list.
+fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> {
+    let mut days = Vec::new();
 
-    let section = match expression.find("in") {
-        Some(end_idx) => expression[start + 2..end_idx].trim(),
-        None => expression[start + 2..].trim(),
-    };
-
-    let mut weekdays = Vec::new();
-
-    for item in section.replace("and", ",").split(',') {
-        let weekday = match item.trim() {
+    for item in expression.replace("and", ",").split(',') {
+        let day = match item.trim() {
             "Monday" => Weekday::Monday,
             "Tuesday" => Weekday::Tuesday,
             "Wednesday" => Weekday::Wednesday,
@@ -494,58 +477,16 @@ fn parse_weekdays(expression: &str) -> Result<Option<Vec<Weekday>>, InvalidExpre
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
-        if !weekdays.contains(&weekday) {
-            weekdays.push(weekday);
+        if !days.contains(&day) {
+            days.push(day);
         } else {
             return Err(InvalidExpressionError::DuplicateInput);
         }
     }
 
-    weekdays.sort_unstable();
+    days.sort_unstable();
 
-    Ok(Some(weekdays))
-}
-
-// Parse the week spec of an expression and return a WeekVariant.
-// After determining the start and end bounds, the value in between
-// is attempted to be matched. If the value is supported, it is mapped
-// to a WeekVariant.
-fn parse_weeks(expression: &str) -> Result<Option<WeekVariant>, InvalidExpressionError> {
-    match expression.find("weeks") {
-        Some(end_idx) => {
-            let start_idx = match expression.find("in") {
-                Some(start_idx) => start_idx,
-                None => return Err(InvalidExpressionError::InvalidWeekSpec),
-            };
-
-            let section = expression[start_idx + 2..end_idx].trim();
-
-            match section {
-                "even" => Ok(Some(WeekVariant::Even)),
-                "odd" => Ok(Some(WeekVariant::Odd)),
-                _ => Err(InvalidExpressionError::InvalidWeekSpec),
-            }
-        }
-        None => match expression.find("week of the month") {
-            Some(end_idx) => {
-                let start_idx = match expression.find("in the") {
-                    Some(start_idx) => start_idx,
-                    None => return Err(InvalidExpressionError::InvalidWeekSpec),
-                };
-
-                let section = expression[start_idx + 6..end_idx].trim();
-
-                match section {
-                    "first" => Ok(Some(WeekVariant::First)),
-                    "second" => Ok(Some(WeekVariant::Second)),
-                    "third" => Ok(Some(WeekVariant::Third)),
-                    "fourth" => Ok(Some(WeekVariant::Fourth)),
-                    _ => Err(InvalidExpressionError::InvalidWeekSpec),
-                }
-            }
-            None => Ok(None),
-        },
-    }
+    Ok(days)
 }
 
 #[cfg(test)]
@@ -596,7 +537,39 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_times_for_error() {
+    fn test_parse_times_every_hour() {
+        let expression = "every full hour";
+        let result = vec![
+            time!(00:00:00),
+            time!(01:00:00),
+            time!(02:00:00),
+            time!(03:00:00),
+            time!(04:00:00),
+            time!(05:00:00),
+            time!(06:00:00),
+            time!(07:00:00),
+            time!(08:00:00),
+            time!(09:00:00),
+            time!(10:00:00),
+            time!(11:00:00),
+            time!(12:00:00),
+            time!(13:00:00),
+            time!(14:00:00),
+            time!(15:00:00),
+            time!(16:00:00),
+            time!(17:00:00),
+            time!(18:00:00),
+            time!(19:00:00),
+            time!(20:00:00),
+            time!(21:00:00),
+            time!(22:00:00),
+            time!(23:00:00),
+        ];
+        assert_eq!(parse_times(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_times_for_parse_error() {
         let expression = "1 AM and 5:30";
         assert_eq!(
             parse_times(expression).unwrap_err(),
@@ -605,87 +578,19 @@ mod tests {
     }
 
     #[test]
-    fn test_complete_schedule() {
-        let expression = "at 6, 8, 7 and 14 o'clock on Monday, Thursday and Saturday in the first week of the month";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, vec!(6, 7, 8, 14));
+    fn test_parse_times_for_duplicate_error() {
+        let expression = "1 AM and 1 AM and 5 PM";
         assert_eq!(
-            schedule.weekdays,
-            Some(vec!(Weekday::Monday, Weekday::Thursday, Weekday::Saturday))
-        );
-        assert_eq!(schedule.weeks, Some(WeekVariant::First));
-    }
-
-    #[test]
-    fn test_schedule_without_week_spec() {
-        let expression = "at 6, 15 o'clock on Friday";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, vec!(6, 15));
-        assert_eq!(schedule.weekdays, Some(vec!(Weekday::Friday)));
-        assert_eq!(schedule.weeks, None);
-    }
-
-    #[test]
-    fn test_schedule_hours_only() {
-        let expression = "at 6, 23 o'clock";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, vec!(6, 23));
-        assert_eq!(schedule.weekdays, None);
-        assert_eq!(schedule.weeks, None);
-    }
-
-    #[test]
-    fn test_schedule_every_hour() {
-        let expression = "at every hour";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, (0..=23).collect::<Vec<u8>>());
-        assert_eq!(schedule.weekdays, None);
-        assert_eq!(schedule.weeks, None);
-    }
-
-    #[test]
-    fn test_schedule_without_weekday_spec() {
-        let expression = "at 6, 23 o'clock in odd weeks";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, vec!(6, 23));
-        assert_eq!(schedule.weekdays, None);
-        assert_eq!(schedule.weeks, Some(WeekVariant::Odd));
-    }
-
-    #[test]
-    fn test_schedule_with_specific_weeks() {
-        let expression = "at 6, 23 o'clock in the fourth  week of the month";
-        let schedule = Schedule::from_str(expression).unwrap();
-        assert_eq!(schedule.hours, vec!(6, 23));
-        assert_eq!(schedule.weekdays, None);
-        assert_eq!(schedule.weeks, Some(WeekVariant::Fourth));
-    }
-
-    #[test]
-    fn test_parse_weekdays_for_unknown_weekday_error() {
-        let expression = "at 6 o'clock on Sunday and Thursday and Fuu in odd weeks";
-        assert_eq!(
-            parse_weekdays(expression).unwrap_err(),
-            InvalidExpressionError::UnknownWeekday
-        );
-    }
-
-    #[test]
-    fn test_parse_weekdays_for_invalid_weekspec_error() {
-        let expression = "at 6 o'clock on Sunday and Thursday in the thrd week of the month";
-        assert_eq!(
-            parse_weeks(expression).unwrap_err(),
-            InvalidExpressionError::InvalidWeekSpec
-        );
-    }
-
-    #[test]
-    fn test_parse_weekdays_for_duplicate_error() {
-        let expression = "at 13 o'clock on Monday and Monday and Friday";
-        assert_eq!(
-            parse_weekdays(expression).unwrap_err(),
+            parse_times(expression).unwrap_err(),
             InvalidExpressionError::DuplicateInput
         );
+    }
+
+    #[test]
+    fn test_parse_days() {
+        let expression = "Monday, Tuesday and Thursday";
+        let result = vec![Weekday::Monday, Weekday::Tuesday, Weekday::Thursday];
+        assert_eq!(parse_days(expression).unwrap(), result);
     }
 
     #[test]
