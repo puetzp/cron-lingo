@@ -46,5 +46,6 @@
 //! days ... and then put in a break for the following week.
 pub mod error;
 pub mod schedule;
+mod types;
 
 pub use self::schedule::Schedule;

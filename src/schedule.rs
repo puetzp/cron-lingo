@@ -1,23 +1,20 @@
 use crate::error::*;
-use std::convert::TryInto;
+use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
 use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
 
 /// A schedule that is built from an expression and can be iterated
-/// in order to compute the next date(s) that match the specification. The
-/// computation is always based on the current system time.
-/// This is the only way (at this point) to use `Schedule` in a meaningful
-/// way.
+/// in order to compute the next date(s) that match the specification. By
+/// default the computation is based on the current system time, meaning
+/// the iterator will never return a date in the past.
 ///
 /// The expression must adhere to a specific syntax. See the module-level
 /// documentation for the full range of possibilities.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Schedule {
     base: OffsetDateTime,
-    hours: Vec<u8>,
-    weekdays: Option<Vec<Weekday>>,
-    weeks: Option<WeekVariant>,
+    specs: Vec<DateSpec>,
 }
 
 impl Schedule {
@@ -50,18 +47,16 @@ impl FromStr for Schedule {
 
         let blocks: Vec<&str> = split_expression(expression);
 
-        let mut specifications: Vec<DateSpec> = vec![];
+        let mut specs: Vec<DateSpec> = vec![];
 
         for block in blocks {
             let spec = parse_block(block)?;
-            specifications.push(spec);
+            specs.push(spec);
         }
 
         let tt = Schedule {
             base: OffsetDateTime::try_now_local().unwrap(),
-            hours: vec![],
-            weekdays: None,
-            weeks: None,
+            specs,
         };
         Ok(tt)
     }
@@ -254,159 +249,6 @@ fn get_first_of_next_month(date: Date) -> Date {
     match Date::try_from_ymd(date.year(), date.month() + 1, 1) {
         Ok(d) => d,
         Err(_) => Date::try_from_ymd(date.year() + 1, 1, 1).unwrap(),
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq)]
-enum WeekVariant {
-    Even,
-    Odd,
-    First,
-    Second,
-    Third,
-    Fourth,
-    None,
-}
-
-impl WeekVariant {
-    fn contains(self, date: Date) -> bool {
-        match self {
-            Self::Even => date.week() % 2 == 0,
-            Self::Odd => date.week() % 2 != 0,
-            Self::First => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                (date - first_day).whole_days() < 7
-            }
-            Self::Second => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (7..14).contains(&delta)
-            }
-            Self::Third => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (14..21).contains(&delta)
-            }
-            Self::Fourth => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (21..28).contains(&delta)
-            }
-            _ => unreachable!(),
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, Eq, Ord)]
-enum WeekdayModifier {
-    First,
-    Second,
-    Third,
-    Fourth,
-    None,
-}
-
-/*
-impl WeekVariant {
-    fn contains(self, date: Date) -> bool {
-        match self {
-            Self::First => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                (date - first_day).whole_days() < 7
-            }
-            Self::Second => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (7..14).contains(&delta)
-            }
-            Self::Third => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (14..21).contains(&delta)
-            }
-            Self::Fourth => {
-                let first_day = Date::try_from_ymd(date.year(), date.month(), 1).unwrap();
-                let delta = (date - first_day).whole_days();
-                (21..28).contains(&delta)
-            }
-        }
-    }
-}
-*/
-
-struct DateSpec {
-    hours: Vec<Time>,
-    days: Option<Vec<Weekday>>,
-    weeks: WeekVariant,
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
-enum Weekday {
-    Monday(WeekdayModifier),
-    Tuesday(WeekdayModifier),
-    Wednesday(WeekdayModifier),
-    Thursday(WeekdayModifier),
-    Friday(WeekdayModifier),
-    Saturday(WeekdayModifier),
-    Sunday(WeekdayModifier),
-}
-
-impl From<time::Weekday> for Weekday {
-    fn from(weekday: time::Weekday) -> Self {
-        match weekday {
-            time::Weekday::Monday => Weekday::Monday(WeekdayModifier::None),
-            time::Weekday::Tuesday => Weekday::Tuesday(WeekdayModifier::None),
-            time::Weekday::Wednesday => Weekday::Wednesday(WeekdayModifier::None),
-            time::Weekday::Thursday => Weekday::Thursday(WeekdayModifier::None),
-            time::Weekday::Friday => Weekday::Friday(WeekdayModifier::None),
-            time::Weekday::Saturday => Weekday::Saturday(WeekdayModifier::None),
-            time::Weekday::Sunday => Weekday::Sunday(WeekdayModifier::None),
-        }
-    }
-}
-
-impl From<Weekday> for u8 {
-    fn from(weekday: Weekday) -> Self {
-        match weekday {
-            Weekday::Monday(_) => 0,
-            Weekday::Tuesday(_) => 1,
-            Weekday::Wednesday(_) => 2,
-            Weekday::Thursday(_) => 3,
-            Weekday::Friday(_) => 4,
-            Weekday::Saturday(_) => 5,
-            Weekday::Sunday(_) => 6,
-        }
-    }
-}
-
-impl From<u8> for Weekday {
-    fn from(num: u8) -> Self {
-        match num {
-            0 => Weekday::Monday(WeekdayModifier::None),
-            1 => Weekday::Tuesday(WeekdayModifier::None),
-            2 => Weekday::Wednesday(WeekdayModifier::None),
-            3 => Weekday::Thursday(WeekdayModifier::None),
-            4 => Weekday::Friday(WeekdayModifier::None),
-            5 => Weekday::Saturday(WeekdayModifier::None),
-            6 => Weekday::Sunday(WeekdayModifier::None),
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl std::ops::Sub for Weekday {
-    type Output = i8;
-
-    fn sub(self, other: Self) -> i8 {
-        (u8::from(self) - u8::from(other)).try_into().unwrap()
-    }
-}
-
-impl std::ops::Add for Weekday {
-    type Output = u8;
-
-    fn add(self, other: Self) -> u8 {
-        u8::from(self) + u8::from(other)
     }
 }
 
