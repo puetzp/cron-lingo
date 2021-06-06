@@ -553,7 +553,7 @@ mod tests {
 
     #[test]
     fn test_parse_days_with_modifiers() {
-        let expression = "the first Monday, Tuesday and the fourth Thursday";
+        let expression = "the first Monday, Tuesday and the 4th Thursday";
         let result = vec![
             Weekday::Monday(WeekdayModifier::First),
             Weekday::Tuesday(WeekdayModifier::None),
