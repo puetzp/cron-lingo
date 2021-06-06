@@ -81,6 +81,7 @@ impl ScheduleIter {
     }
 }
 
+/*
 impl Iterator for ScheduleIter {
     type Item = OffsetDateTime;
 
@@ -226,6 +227,7 @@ impl Iterator for ScheduleIter {
         Some(next_date_time)
     }
 }
+*/
 
 fn compute_next_date(base: Date, weekdays: &Option<Vec<Weekday>>) -> Date {
     let base_weekday: Weekday = base.weekday().into();
@@ -321,14 +323,17 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>, Option<&str>), Invali
         None => match remainder.find('(') {
             Some(start_idx) => match remainder.find(')') {
                 Some(end_idx) => {
-                    let times = block[..start_idx].trim();
+                    let times = block[..start_idx].trim_start_matches("at").trim();
                     let days = block[start_idx + 1..end_idx].trim();
 
                     Ok((times, Some(days), weeks))
                 }
                 None => return Err(InvalidExpressionError::Syntax),
             },
-            None => Ok((remainder, None, weeks)),
+            None => {
+                let times = remainder.trim_start_matches("at").trim();
+                Ok((times, None, weeks))
+            }
         },
     }
 }
@@ -372,42 +377,42 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
     let mut days = Vec::new();
 
     for item in expression.replace("and", ",").split(',') {
-        let day = match item.trim() {
+        let day = match item.trim().trim_start_matches("the").trim() {
             "Monday" => Weekday::Monday(WeekdayModifier::None),
-            "the first Monday" => Weekday::Monday(WeekdayModifier::First),
-            "the second Monday" => Weekday::Monday(WeekdayModifier::Second),
-            "the third Monday" => Weekday::Monday(WeekdayModifier::Third),
-            "the fourth Monday" => Weekday::Monday(WeekdayModifier::Fourth),
+            "first Monday" => Weekday::Monday(WeekdayModifier::First),
+            "second Monday" => Weekday::Monday(WeekdayModifier::Second),
+            "third Monday" => Weekday::Monday(WeekdayModifier::Third),
+            "fourth Monday" => Weekday::Monday(WeekdayModifier::Fourth),
             "Tuesday" => Weekday::Tuesday(WeekdayModifier::None),
-            "the first Tuesday" => Weekday::Tuesday(WeekdayModifier::First),
-            "the second Tuesday" => Weekday::Tuesday(WeekdayModifier::Second),
-            "the third Tuesday" => Weekday::Tuesday(WeekdayModifier::Third),
-            "the fourth Tuesday" => Weekday::Tuesday(WeekdayModifier::Fourth),
+            "first Tuesday" => Weekday::Tuesday(WeekdayModifier::First),
+            "second Tuesday" => Weekday::Tuesday(WeekdayModifier::Second),
+            "third Tuesday" => Weekday::Tuesday(WeekdayModifier::Third),
+            "fourth Tuesday" => Weekday::Tuesday(WeekdayModifier::Fourth),
             "Wednesday" => Weekday::Wednesday(WeekdayModifier::None),
-            "the first Wednesday" => Weekday::Wednesday(WeekdayModifier::First),
-            "the second Wednesday" => Weekday::Wednesday(WeekdayModifier::Second),
-            "the third Wednesday" => Weekday::Wednesday(WeekdayModifier::Third),
-            "the fourth Wednesday" => Weekday::Wednesday(WeekdayModifier::Fourth),
+            "first Wednesday" => Weekday::Wednesday(WeekdayModifier::First),
+            "second Wednesday" => Weekday::Wednesday(WeekdayModifier::Second),
+            "third Wednesday" => Weekday::Wednesday(WeekdayModifier::Third),
+            "fourth Wednesday" => Weekday::Wednesday(WeekdayModifier::Fourth),
             "Thursday" => Weekday::Thursday(WeekdayModifier::None),
-            "the first Thursday" => Weekday::Thursday(WeekdayModifier::First),
-            "the second Thursday" => Weekday::Thursday(WeekdayModifier::Second),
-            "the third Thursday" => Weekday::Thursday(WeekdayModifier::Third),
-            "the fourth Thursday" => Weekday::Thursday(WeekdayModifier::Fourth),
+            "first Thursday" => Weekday::Thursday(WeekdayModifier::First),
+            "second Thursday" => Weekday::Thursday(WeekdayModifier::Second),
+            "third Thursday" => Weekday::Thursday(WeekdayModifier::Third),
+            "fourth Thursday" => Weekday::Thursday(WeekdayModifier::Fourth),
             "Friday" => Weekday::Friday(WeekdayModifier::None),
-            "the first Friday" => Weekday::Friday(WeekdayModifier::First),
-            "the second Friday" => Weekday::Friday(WeekdayModifier::Second),
-            "the third Friday" => Weekday::Friday(WeekdayModifier::Third),
-            "the fourth Friay" => Weekday::Friday(WeekdayModifier::Fourth),
+            "first Friday" => Weekday::Friday(WeekdayModifier::First),
+            "second Friday" => Weekday::Friday(WeekdayModifier::Second),
+            "third Friday" => Weekday::Friday(WeekdayModifier::Third),
+            "fourth Friay" => Weekday::Friday(WeekdayModifier::Fourth),
             "Saturday" => Weekday::Saturday(WeekdayModifier::None),
-            "the first Saturday" => Weekday::Saturday(WeekdayModifier::First),
-            "the second Saturday" => Weekday::Saturday(WeekdayModifier::Second),
-            "the third Saturday" => Weekday::Saturday(WeekdayModifier::Third),
-            "the fourth Saturday" => Weekday::Saturday(WeekdayModifier::Fourth),
+            "first Saturday" => Weekday::Saturday(WeekdayModifier::First),
+            "second Saturday" => Weekday::Saturday(WeekdayModifier::Second),
+            "third Saturday" => Weekday::Saturday(WeekdayModifier::Third),
+            "fourth Saturday" => Weekday::Saturday(WeekdayModifier::Fourth),
             "Sunday" => Weekday::Sunday(WeekdayModifier::None),
-            "the first Sunday" => Weekday::Sunday(WeekdayModifier::First),
-            "the second Sunday" => Weekday::Sunday(WeekdayModifier::Second),
-            "the third Sunday" => Weekday::Sunday(WeekdayModifier::Third),
-            "the fourth Sunday" => Weekday::Sunday(WeekdayModifier::Fourth),
+            "first Sunday" => Weekday::Sunday(WeekdayModifier::First),
+            "second Sunday" => Weekday::Sunday(WeekdayModifier::Second),
+            "third Sunday" => Weekday::Sunday(WeekdayModifier::Third),
+            "fourth Sunday" => Weekday::Sunday(WeekdayModifier::Fourth),
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
@@ -560,5 +565,63 @@ mod tests {
             Weekday::Thursday(WeekdayModifier::Fourth),
         ];
         assert_eq!(parse_days(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_block_1() {
+        let expression = "at 5 PM (Monday and Thursday) in odd weeks";
+        let result = DateSpec {
+            hours: vec![time!(17:00:00)],
+            days: Some(vec![
+                Weekday::Monday(WeekdayModifier::None),
+                Weekday::Thursday(WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::Odd,
+        };
+        assert_eq!(parse_block(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_block_2() {
+        let expression = "at 5 AM  and 6:30 PM (first Monday and Thursday)";
+        let result = DateSpec {
+            hours: vec![time!(05:00:00), time!(18:30:00)],
+            days: Some(vec![
+                Weekday::Monday(WeekdayModifier::First),
+                Weekday::Thursday(WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::None,
+        };
+        assert_eq!(parse_block(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_block_3() {
+        let expression = "at 6:30 AM and 6:30 PM on Monday and Friday in even weeks";
+        let result = DateSpec {
+            hours: vec![time!(06:30:00), time!(18:30:00)],
+            days: Some(vec![
+                Weekday::Monday(WeekdayModifier::None),
+                Weekday::Friday(WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::Even,
+        };
+        assert_eq!(parse_block(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_block_4() {
+        let expression = "at every full hour on Monday";
+        assert!(parse_block(expression).is_ok());
+    }
+    #[test]
+    fn test_parse_block_5() {
+        let expression = "at 6 PM in even weeks";
+        let result = DateSpec {
+            hours: vec![time!(18:00:00)],
+            days: None,
+            weeks: WeekVariant::Even,
+        };
+        assert_eq!(parse_block(expression).unwrap(), result);
     }
 }

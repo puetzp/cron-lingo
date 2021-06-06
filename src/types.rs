@@ -80,9 +80,9 @@ impl WeekVariant {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct DateSpec {
-    hours: Vec<Time>,
-    days: Option<Vec<Weekday>>,
-    weeks: WeekVariant,
+    pub hours: Vec<Time>,
+    pub days: Option<Vec<Weekday>>,
+    pub weeks: WeekVariant,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
