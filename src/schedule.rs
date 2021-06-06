@@ -377,47 +377,42 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
     let mut days = Vec::new();
 
     for item in expression.replace("and", ",").split(',') {
-        let day = match item.trim().trim_start_matches("the").trim() {
-            "Monday" => Weekday::Monday(WeekdayModifier::None),
-            "first Monday" => Weekday::Monday(WeekdayModifier::First),
-            "second Monday" => Weekday::Monday(WeekdayModifier::Second),
-            "third Monday" => Weekday::Monday(WeekdayModifier::Third),
-            "fourth Monday" => Weekday::Monday(WeekdayModifier::Fourth),
-            "Tuesday" => Weekday::Tuesday(WeekdayModifier::None),
-            "first Tuesday" => Weekday::Tuesday(WeekdayModifier::First),
-            "second Tuesday" => Weekday::Tuesday(WeekdayModifier::Second),
-            "third Tuesday" => Weekday::Tuesday(WeekdayModifier::Third),
-            "fourth Tuesday" => Weekday::Tuesday(WeekdayModifier::Fourth),
-            "Wednesday" => Weekday::Wednesday(WeekdayModifier::None),
-            "first Wednesday" => Weekday::Wednesday(WeekdayModifier::First),
-            "second Wednesday" => Weekday::Wednesday(WeekdayModifier::Second),
-            "third Wednesday" => Weekday::Wednesday(WeekdayModifier::Third),
-            "fourth Wednesday" => Weekday::Wednesday(WeekdayModifier::Fourth),
-            "Thursday" => Weekday::Thursday(WeekdayModifier::None),
-            "first Thursday" => Weekday::Thursday(WeekdayModifier::First),
-            "second Thursday" => Weekday::Thursday(WeekdayModifier::Second),
-            "third Thursday" => Weekday::Thursday(WeekdayModifier::Third),
-            "fourth Thursday" => Weekday::Thursday(WeekdayModifier::Fourth),
-            "Friday" => Weekday::Friday(WeekdayModifier::None),
-            "first Friday" => Weekday::Friday(WeekdayModifier::First),
-            "second Friday" => Weekday::Friday(WeekdayModifier::Second),
-            "third Friday" => Weekday::Friday(WeekdayModifier::Third),
-            "fourth Friay" => Weekday::Friday(WeekdayModifier::Fourth),
-            "Saturday" => Weekday::Saturday(WeekdayModifier::None),
-            "first Saturday" => Weekday::Saturday(WeekdayModifier::First),
-            "second Saturday" => Weekday::Saturday(WeekdayModifier::Second),
-            "third Saturday" => Weekday::Saturday(WeekdayModifier::Third),
-            "fourth Saturday" => Weekday::Saturday(WeekdayModifier::Fourth),
-            "Sunday" => Weekday::Sunday(WeekdayModifier::None),
-            "first Sunday" => Weekday::Sunday(WeekdayModifier::First),
-            "second Sunday" => Weekday::Sunday(WeekdayModifier::Second),
-            "third Sunday" => Weekday::Sunday(WeekdayModifier::Third),
-            "fourth Sunday" => Weekday::Sunday(WeekdayModifier::Fourth),
+        let parts: Vec<&str> = item
+            .trim()
+            .trim_start_matches("the")
+            .trim()
+            .split_whitespace()
+            .collect();
+
+        let (modifier, day) = if parts.len() == 2 {
+            let m = match parts[0] {
+                "first" | "1st" => WeekdayModifier::First,
+                "second" | "2nd" => WeekdayModifier::Second,
+                "third" | "3rd" => WeekdayModifier::Third,
+                "fourth" | "4th" => WeekdayModifier::Fourth,
+                _ => return Err(InvalidExpressionError::InvalidWeekdayModifier),
+            };
+
+            (m, parts[1])
+        } else if parts.len() == 1 {
+            (WeekdayModifier::None, parts[0])
+        } else {
+            return Err(InvalidExpressionError::InvalidWeekdaySpec);
+        };
+
+        let spec = match day {
+            "Monday" => Weekday::Monday(modifier),
+            "Tuesday" => Weekday::Tuesday(modifier),
+            "Wednesday" => Weekday::Wednesday(modifier),
+            "Thursday" => Weekday::Thursday(modifier),
+            "Friday" => Weekday::Friday(modifier),
+            "Saturday" => Weekday::Saturday(modifier),
+            "Sunday" => Weekday::Sunday(modifier),
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
 
-        if !days.contains(&day) {
-            days.push(day);
+        if !days.contains(&spec) {
+            days.push(spec);
         } else {
             return Err(InvalidExpressionError::DuplicateInput);
         }

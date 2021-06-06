@@ -10,6 +10,8 @@ pub enum InvalidExpressionError {
     DuplicateInput,
     UnknownWeekday,
     InvalidWeekSpec,
+    InvalidWeekdaySpec,
+    InvalidWeekdayModifier,
     InvalidHourSpec(time::ParseError),
     ParseHour,
 }
@@ -22,6 +24,8 @@ impl fmt::Display for InvalidExpressionError {
             Self::DuplicateInput => DuplicateInputError.fmt(f),
             Self::UnknownWeekday => UnknownWeekdayError.fmt(f),
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
+            Self::InvalidWeekdaySpec => InvalidWeekdaySpecError.fmt(f),
+            Self::InvalidWeekdayModifier => InvalidWeekdayModifierError.fmt(f),
             Self::InvalidHourSpec(e) => e.fmt(f),
             Self::ParseHour => ParseHourError.fmt(f),
         }
@@ -92,6 +96,38 @@ impl fmt::Display for InvalidWeekSpecError {
 }
 
 impl Error for InvalidWeekSpecError {}
+
+/// An error indicating that the weekday spec of an expression contains
+/// invalid input or does not adhere to the prescribed syntax.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct InvalidWeekdaySpecError;
+
+impl fmt::Display for InvalidWeekdaySpecError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "the expression contains invalid input for the weekday spec"
+        )
+    }
+}
+
+impl Error for InvalidWeekdaySpecError {}
+
+/// An error indicating that the weekday modifier of an expression contains
+/// invalid input or does not adhere to the prescribed syntax.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct InvalidWeekdayModifierError;
+
+impl fmt::Display for InvalidWeekdayModifierError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "the expression contains an invalid weekday modifier, must be one of {{first, 1st, second, 2nd, third, 3rd, fourth, 4th}}"
+        )
+    }
+}
+
+impl Error for InvalidWeekdayModifierError {}
 
 /// An error indicating that the hour spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.
