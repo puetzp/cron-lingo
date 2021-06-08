@@ -136,51 +136,49 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
         // ... remove all objects that match none of the desired weekdays (if any)
         // and increment the remaining dates according to the WeekdayModifier (if any) ...
         if let Some(ref days) = spec.days {
-            candidates = candidates
-                .into_iter()
+            candidates
+                .iter_mut()
                 .filter(|c| days.iter().any(|x| x.0 == c.weekday()))
-                .collect();
+                .for_each(|candidate| {
+                    let day_spec = days.iter().find(|x| x.0 == candidate.weekday()).unwrap();
+                    let day = candidate.day();
 
-            for mut candidate in candidates.iter_mut() {
-                let day_spec = days.iter().find(|x| x.0 == candidate.weekday()).unwrap();
-                let day = candidate.day();
-
-                match day_spec.1 {
-                    WeekdayModifier::First => {
-                        if day > 7 {
-                            *candidate = wrap_to_next_month(candidate, 7);
+                    match day_spec.1 {
+                        WeekdayModifier::First => {
+                            if day > 7 {
+                                *candidate = wrap_to_next_month(candidate, 7);
+                            }
                         }
-                    }
-                    WeekdayModifier::Second => {
-                        if day > 14 {
-                            *candidate = wrap_to_next_month(candidate, 14);
-                        } else if day <= 7 {
-                            *candidate += Duration::week();
+                        WeekdayModifier::Second => {
+                            if day > 14 {
+                                *candidate = wrap_to_next_month(candidate, 14);
+                            } else if day <= 7 {
+                                *candidate += Duration::week();
+                            }
                         }
-                    }
-                    WeekdayModifier::Third => {
-                        if day > 21 {
-                            *candidate = wrap_to_next_month(candidate, 21);
-                        } else if day <= 7 {
-                            *candidate += Duration::weeks(2);
-                        } else if day <= 14 {
-                            *candidate += Duration::week();
+                        WeekdayModifier::Third => {
+                            if day > 21 {
+                                *candidate = wrap_to_next_month(candidate, 21);
+                            } else if day <= 7 {
+                                *candidate += Duration::weeks(2);
+                            } else if day <= 14 {
+                                *candidate += Duration::week();
+                            }
                         }
-                    }
-                    WeekdayModifier::Fourth => {
-                        if day > 28 {
-                            *candidate = wrap_to_next_month(candidate, 28);
-                        } else if day <= 7 {
-                            *candidate += Duration::weeks(2);
-                        } else if day <= 14 {
-                            *candidate += Duration::week();
-                        } else if day <= 21 {
-                            *candidate += Duration::week();
+                        WeekdayModifier::Fourth => {
+                            if day > 28 {
+                                *candidate = wrap_to_next_month(candidate, 28);
+                            } else if day <= 7 {
+                                *candidate += Duration::weeks(2);
+                            } else if day <= 14 {
+                                *candidate += Duration::week();
+                            } else if day <= 21 {
+                                *candidate += Duration::week();
+                            }
                         }
+                        WeekdayModifier::None => {}
                     }
-                    WeekdayModifier::None => {}
-                }
-            }
+                });
         }
     }
 
@@ -578,7 +576,7 @@ mod tests {
             days: None,
             weeks: WeekVariant::None,
         };
-        let result = vec![
+        let mut result = vec![
             PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 05), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 06), time!(12:00:00)).assume_utc(),
@@ -594,7 +592,7 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(18:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, spec).sort(), result.sort());
     }
 
     #[test]
@@ -608,11 +606,11 @@ mod tests {
             ]),
             weeks: WeekVariant::None,
         };
-        let result = vec![
+        let mut result = vec![
             PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(18:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, spec).sort(), result.sort());
     }
 
     #[test]
@@ -626,11 +624,11 @@ mod tests {
             ]),
             weeks: WeekVariant::None,
         };
-        let result = vec![
+        let mut result = vec![
             PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(18:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, spec).sort(), result.sort());
     }
 
     #[test]
@@ -644,13 +642,13 @@ mod tests {
             ]),
             weeks: WeekVariant::None,
         };
-        let result = vec![
+        let mut result = vec![
             PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(12:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(18:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, spec).sort(), result.sort());
     }
 
     #[test]
@@ -665,7 +663,7 @@ mod tests {
             ]),
             weeks: WeekVariant::None,
         };
-        let result = vec![
+        let mut result = vec![
             PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(06:00:00)).assume_utc(),
@@ -676,6 +674,6 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(18:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(18:00:00)).assume_utc(),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, spec).sort(), result.sort());
     }
 }
