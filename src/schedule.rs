@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
-use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time};
+use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time, Weekday};
 
 /// A schedule that is built from an expression and can be iterated
 /// in order to compute the next date(s) that match the specification. By
@@ -81,7 +81,6 @@ impl ScheduleIter {
     }
 }
 
-/*
 impl Iterator for ScheduleIter {
     type Item = OffsetDateTime;
 
@@ -94,157 +93,109 @@ impl Iterator for ScheduleIter {
             }
         }
 
-        let (mut next_date, next_time) = match &self.schedule.weekdays {
-            Some(weekdays) => {
-                let this_weekday = self.current.weekday().number_days_from_monday().into();
+        // Create every possible combination of dates for each
+        // DateSpec and add them to a vector.
+        let mut candidates: Vec<OffsetDateTime> = vec![];
 
-                let (next_hour, next_weekday) = if weekdays.iter().any(|&x| x == this_weekday) {
-                    match self
-                        .schedule
-                        .hours
-                        .iter()
-                        .find(|&&x| x > self.current.hour())
-                    {
-                        Some(n) => (*n, this_weekday),
-                        None => match weekdays.iter().find(|&&x| x > this_weekday) {
-                            Some(wd) => (self.schedule.hours[0], *wd),
-                            None => (self.schedule.hours[0], weekdays[0]),
-                        },
-                    }
-                } else {
-                    match weekdays.iter().find(|&&x| x > this_weekday) {
-                        Some(wd) => (self.schedule.hours[0], *wd),
-                        None => (self.schedule.hours[0], weekdays[0]),
-                    }
-                };
-
-                let next_time = Time::try_from_hms(next_hour, 0, 0).unwrap();
-
-                let day_addend = {
-                    if this_weekday > next_weekday {
-                        7 - (this_weekday - next_weekday)
-                    } else if this_weekday == next_weekday
-                        && self.current.hour() >= next_time.hour()
-                    {
-                        7
-                    } else {
-                        next_weekday - this_weekday
-                    }
-                };
-
-                let next_date = self.current.date() + Duration::days(day_addend.into());
-
-                (next_date, next_time)
-            }
-            None => match self
-                .schedule
-                .hours
-                .iter()
-                .find(|&&x| x > self.current.hour())
-            {
-                Some(h) => {
-                    let next_time = Time::try_from_hms(*h, 0, 0).unwrap();
-                    (self.current.date(), next_time)
-                }
-                None => {
-                    let next_time = Time::try_from_hms(self.schedule.hours[0], 0, 0).unwrap();
-                    let next_date = self.current.date() + Duration::day();
-                    (next_date, next_time)
-                }
-            },
-        };
-
-        if let Some(week) = &self.schedule.weeks {
-            match week {
-                WeekVariant::Even | WeekVariant::Odd => {
-                    if !week.contains(next_date) {
-                        next_date += Duration::week();
-                    }
-                }
-                WeekVariant::First => {
-                    if !week.contains(next_date) {
-                        let base = get_first_of_next_month(next_date);
-                        next_date = compute_next_date(base, &self.schedule.weekdays);
-                    }
-                }
-                WeekVariant::Second => {
-                    if !week.contains(next_date) {
-                        let end_of_first =
-                            Date::try_from_ymd(next_date.year(), next_date.month(), 7).unwrap();
-
-                        if end_of_first < next_date {
-                            let base = get_first_of_next_month(next_date) + Duration::days(7);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        } else {
-                            let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
-                                .unwrap()
-                                + Duration::days(7);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        }
-                    }
-                }
-                WeekVariant::Third => {
-                    if !week.contains(next_date) {
-                        let end_of_second =
-                            Date::try_from_ymd(next_date.year(), next_date.month(), 14).unwrap();
-
-                        if end_of_second < next_date {
-                            let base = get_first_of_next_month(next_date) + Duration::days(14);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        } else {
-                            let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
-                                .unwrap()
-                                + Duration::days(14);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        }
-                    }
-                }
-                WeekVariant::Fourth => {
-                    if !week.contains(next_date) {
-                        let end_of_third =
-                            Date::try_from_ymd(next_date.year(), next_date.month(), 21).unwrap();
-
-                        if end_of_third < next_date {
-                            let base = get_first_of_next_month(next_date) + Duration::days(21);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        } else {
-                            let base = Date::try_from_ymd(next_date.year(), next_date.month(), 1)
-                                .unwrap()
-                                + Duration::days(21);
-                            next_date = compute_next_date(base, &self.schedule.weekdays);
-                        }
-                    }
-                }
-                WeekVariant::None => unreachable!(),
-            }
+        for spec in self.schedule.specs.clone() {
+            candidates.append(&mut compute_dates(self.current, spec));
         }
 
-        let next_date_time =
-            PrimitiveDateTime::new(next_date, next_time).assume_offset(self.current.offset());
+        // Iterate the vector of dates and find the next date
+        // by subtracting the current date from each element
+        // in the vector. Return the date that results in the
+        // lowest delta.
+        let next_date = candidates
+            .iter()
+            .min_by_key(|d| **d - self.current)
+            .unwrap();
 
-        self.current = next_date_time;
-
-        Some(next_date_time)
+        Some(*next_date)
     }
 }
-*/
 
-fn compute_next_date(base: Date, weekdays: &Option<Vec<Weekday>>) -> Date {
-    let base_weekday: Weekday = base.weekday().into();
+fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
+    let mut candidates = vec![];
+    let today = base.date();
+    let offset = base.offset();
 
-    match weekdays {
-        Some(weekdays) => match weekdays.iter().find(|&&wd| wd >= base_weekday) {
-            Some(wd) => {
-                let delta = *wd - base_weekday;
-                base + Duration::days(delta.into())
+    // For each specified time ...
+    for time in spec.hours {
+        // ... create an OffsetDateTime object for each upcoming weekday ...
+        for i in 0..=6 {
+            let mut date =
+                PrimitiveDateTime::new(today + Duration::days(i), time).assume_offset(offset);
+
+            if date < base {
+                date += Duration::week();
             }
-            None => {
-                let delta = 7 - (base_weekday - weekdays[0]);
-                base + Duration::days(delta.into())
+
+            candidates.push(date);
+        }
+
+        // ... remove all objects that match none of the desired weekdays (if any)
+        // and increment the remaining dates according to the WeekdayModifier (if any) ...
+        if let Some(ref days) = spec.days {
+            candidates = candidates
+                .into_iter()
+                .filter(|c| days.iter().any(|x| x.0 == c.weekday()))
+                .collect();
+
+            for mut candidate in candidates.iter_mut() {
+                let day_spec = days.iter().find(|x| x.0 == candidate.weekday()).unwrap();
+                let day = candidate.day();
+
+                match day_spec.1 {
+                    WeekdayModifier::First => {
+                        if day > 7 {
+                            *candidate = wrap_to_next_month(candidate, 7);
+                        }
+                    }
+                    WeekdayModifier::Second => {
+                        if day > 14 {
+                            *candidate = wrap_to_next_month(candidate, 14);
+                        } else if day <= 7 {
+                            *candidate += Duration::week();
+                        }
+                    }
+                    WeekdayModifier::Third => {
+                        if day > 21 {
+                            *candidate = wrap_to_next_month(candidate, 21);
+                        } else if day <= 7 {
+                            *candidate += Duration::weeks(2);
+                        } else if day <= 14 {
+                            *candidate += Duration::week();
+                        }
+                    }
+                    WeekdayModifier::Fourth => {
+                        if day > 28 {
+                            *candidate = wrap_to_next_month(candidate, 28);
+                        } else if day <= 7 {
+                            *candidate += Duration::weeks(2);
+                        } else if day <= 14 {
+                            *candidate += Duration::week();
+                        } else if day <= 21 {
+                            *candidate += Duration::week();
+                        }
+                    }
+                    WeekdayModifier::None => {}
+                }
             }
-        },
-        None => base,
+        }
     }
+
+    candidates
+}
+
+// Wrap to a specific date (specific weekday and week) in the next month
+// based on the weekday of the first day of the next month and an offset.
+fn wrap_to_next_month(date: &OffsetDateTime, off: u8) -> OffsetDateTime {
+    let offset = date.offset();
+    let first_next = get_first_of_next_month(date.date());
+    let delta = date.weekday().number_from_monday() - first_next.weekday().number_from_monday();
+    let addend = if delta >= 0 { delta } else { off - delta };
+    let new_date = first_next + Duration::days(addend.into());
+    PrimitiveDateTime::new(new_date, date.time()).assume_offset(offset)
 }
 
 fn get_first_of_next_month(date: Date) -> Date {
@@ -367,13 +318,11 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
         }
     }
 
-    times.sort_unstable();
-
     Ok(times)
 }
 
 // Parse the weekday spec of an expression and return a sorted list.
-fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> {
+fn parse_days(expression: &str) -> Result<Vec<(Weekday, WeekdayModifier)>, InvalidExpressionError> {
     let mut days = Vec::new();
 
     for item in expression.replace("and", ",").split(',') {
@@ -384,7 +333,7 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
             .split_whitespace()
             .collect();
 
-        let (modifier, day) = if parts.len() == 2 {
+        let (modifier, raw_day) = if parts.len() == 2 {
             let m = match parts[0] {
                 "first" | "1st" => WeekdayModifier::First,
                 "second" | "2nd" => WeekdayModifier::Second,
@@ -400,16 +349,18 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
             return Err(InvalidExpressionError::InvalidWeekdaySpec);
         };
 
-        let spec = match day {
-            "Monday" => Weekday::Monday(modifier),
-            "Tuesday" => Weekday::Tuesday(modifier),
-            "Wednesday" => Weekday::Wednesday(modifier),
-            "Thursday" => Weekday::Thursday(modifier),
-            "Friday" => Weekday::Friday(modifier),
-            "Saturday" => Weekday::Saturday(modifier),
-            "Sunday" => Weekday::Sunday(modifier),
+        let day = match raw_day {
+            "Monday" => Weekday::Monday,
+            "Tuesday" => Weekday::Tuesday,
+            "Wednesday" => Weekday::Wednesday,
+            "Thursday" => Weekday::Thursday,
+            "Friday" => Weekday::Friday,
+            "Saturday" => Weekday::Saturday,
+            "Sunday" => Weekday::Sunday,
             _ => return Err(InvalidExpressionError::UnknownWeekday),
         };
+
+        let spec = (day, modifier);
 
         if !days.contains(&spec) {
             days.push(spec);
@@ -418,15 +369,13 @@ fn parse_days(expression: &str) -> Result<Vec<Weekday>, InvalidExpressionError> 
         }
     }
 
-    days.sort_unstable();
-
     Ok(days)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::time;
+    use time::{date, time};
 
     #[test]
     fn test_empty_expression() {
@@ -535,9 +484,9 @@ mod tests {
     fn test_parse_days() {
         let expression = "Monday, Tuesday and Thursday";
         let result = vec![
-            Weekday::Monday(WeekdayModifier::None),
-            Weekday::Tuesday(WeekdayModifier::None),
-            Weekday::Thursday(WeekdayModifier::None),
+            (Weekday::Monday, WeekdayModifier::None),
+            (Weekday::Tuesday, WeekdayModifier::None),
+            (Weekday::Thursday, WeekdayModifier::None),
         ];
         assert_eq!(parse_days(expression).unwrap(), result);
     }
@@ -555,9 +504,9 @@ mod tests {
     fn test_parse_days_with_modifiers() {
         let expression = "the first Monday, Tuesday and the 4th Thursday";
         let result = vec![
-            Weekday::Monday(WeekdayModifier::First),
-            Weekday::Tuesday(WeekdayModifier::None),
-            Weekday::Thursday(WeekdayModifier::Fourth),
+            (Weekday::Monday, WeekdayModifier::First),
+            (Weekday::Tuesday, WeekdayModifier::None),
+            (Weekday::Thursday, WeekdayModifier::Fourth),
         ];
         assert_eq!(parse_days(expression).unwrap(), result);
     }
@@ -568,8 +517,8 @@ mod tests {
         let result = DateSpec {
             hours: vec![time!(17:00:00)],
             days: Some(vec![
-                Weekday::Monday(WeekdayModifier::None),
-                Weekday::Thursday(WeekdayModifier::None),
+                (Weekday::Monday, WeekdayModifier::None),
+                (Weekday::Thursday, WeekdayModifier::None),
             ]),
             weeks: WeekVariant::Odd,
         };
@@ -582,8 +531,8 @@ mod tests {
         let result = DateSpec {
             hours: vec![time!(05:00:00), time!(18:30:00)],
             days: Some(vec![
-                Weekday::Monday(WeekdayModifier::First),
-                Weekday::Thursday(WeekdayModifier::None),
+                (Weekday::Monday, WeekdayModifier::First),
+                (Weekday::Thursday, WeekdayModifier::None),
             ]),
             weeks: WeekVariant::None,
         };
@@ -596,8 +545,8 @@ mod tests {
         let result = DateSpec {
             hours: vec![time!(06:30:00), time!(18:30:00)],
             days: Some(vec![
-                Weekday::Monday(WeekdayModifier::None),
-                Weekday::Friday(WeekdayModifier::None),
+                (Weekday::Monday, WeekdayModifier::None),
+                (Weekday::Friday, WeekdayModifier::None),
             ]),
             weeks: WeekVariant::Even,
         };
@@ -609,6 +558,7 @@ mod tests {
         let expression = "at every full hour on Monday";
         assert!(parse_block(expression).is_ok());
     }
+
     #[test]
     fn test_parse_block_5() {
         let expression = "at 6 PM in even weeks";
@@ -618,5 +568,114 @@ mod tests {
             weeks: WeekVariant::Even,
         };
         assert_eq!(parse_block(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_compute_dates_1() {
+        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let spec = DateSpec {
+            hours: vec![time!(12:00:00), time!(18:00:00)],
+            days: None,
+            weeks: WeekVariant::None,
+        };
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 05), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 06), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 08), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 05), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 06), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 08), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(compute_dates(base, spec), result);
+    }
+
+    #[test]
+    fn test_compute_dates_2() {
+        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let spec = DateSpec {
+            hours: vec![time!(18:00:00)],
+            days: Some(vec![
+                (Weekday::Monday, WeekdayModifier::None),
+                (Weekday::Thursday, WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::None,
+        };
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(compute_dates(base, spec), result);
+    }
+
+    #[test]
+    fn test_compute_dates_3() {
+        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let spec = DateSpec {
+            hours: vec![time!(18:00:00)],
+            days: Some(vec![
+                (Weekday::Monday, WeekdayModifier::Second),
+                (Weekday::Thursday, WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::None,
+        };
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(compute_dates(base, spec), result);
+    }
+
+    #[test]
+    fn test_compute_dates_4() {
+        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let spec = DateSpec {
+            hours: vec![time!(12:00:00), time!(18:00:00)],
+            days: Some(vec![
+                (Weekday::Friday, WeekdayModifier::First),
+                (Weekday::Thursday, WeekdayModifier::None),
+            ]),
+            weeks: WeekVariant::None,
+        };
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(compute_dates(base, spec), result);
+    }
+
+    #[test]
+    fn test_compute_dates_5() {
+        let base = PrimitiveDateTime::new(date!(2021 - 06 - 12), time!(13:38:00)).assume_utc();
+        let spec = DateSpec {
+            hours: vec![time!(06:00:00), time!(12:00:00), time!(18:00:00)],
+            days: Some(vec![
+                (Weekday::Friday, WeekdayModifier::First),
+                (Weekday::Thursday, WeekdayModifier::None),
+                (Weekday::Monday, WeekdayModifier::Third),
+            ]),
+            weeks: WeekVariant::None,
+        };
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(12:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(18:00:00)).assume_utc(),
+        ];
+        assert_eq!(compute_dates(base, spec), result);
     }
 }
