@@ -324,41 +324,44 @@ fn parse_days(expression: &str) -> Result<Vec<(Weekday, WeekdayModifier)>, Inval
     let mut days = Vec::new();
 
     for item in expression.replace("and", ",").split(',') {
-        let parts: Vec<&str> = item
-            .trim()
-            .trim_start_matches("the")
-            .trim()
-            .split_whitespace()
-            .collect();
-
-        let (modifier, raw_day) = if parts.len() == 2 {
-            let m = match parts[0] {
-                "first" | "1st" => WeekdayModifier::First,
-                "second" | "2nd" => WeekdayModifier::Second,
-                "third" | "3rd" => WeekdayModifier::Third,
-                "fourth" | "4th" => WeekdayModifier::Fourth,
-                _ => return Err(InvalidExpressionError::InvalidWeekdayModifier),
-            };
-
-            (m, parts[1])
-        } else if parts.len() == 1 {
-            (WeekdayModifier::None, parts[0])
-        } else {
-            return Err(InvalidExpressionError::InvalidWeekdaySpec);
+        let spec = match item.trim().trim_start_matches("the").trim() {
+            "Mondays" => (Weekday::Monday, WeekdayModifier::None),
+            "first Monday" | "1st Monday" => (Weekday::Monday, WeekdayModifier::First),
+            "second Monday" | "2nd Monday" => (Weekday::Monday, WeekdayModifier::Second),
+            "third Monday" | "3rd Monday" => (Weekday::Monday, WeekdayModifier::Third),
+            "fourth Monday" | "4th Monday" => (Weekday::Monday, WeekdayModifier::Fourth),
+            "Tuesdays" => (Weekday::Tuesday, WeekdayModifier::None),
+            "first Tuesday" | "1st Tuesday" => (Weekday::Tuesday, WeekdayModifier::First),
+            "second Tuesday" | "2nd Tuesday" => (Weekday::Tuesday, WeekdayModifier::Second),
+            "third Tuesday" | "3rd Tuesday" => (Weekday::Tuesday, WeekdayModifier::Third),
+            "fourth Tuesday" | "4th Tuesday" => (Weekday::Tuesday, WeekdayModifier::Fourth),
+            "Wednesdays" => (Weekday::Wednesday, WeekdayModifier::None),
+            "first Wednesday" | "1st Wednesday" => (Weekday::Wednesday, WeekdayModifier::First),
+            "second Wednesday" | "2nd Wednesday" => (Weekday::Wednesday, WeekdayModifier::Second),
+            "third Wednesday" | "3rd Wednesday" => (Weekday::Wednesday, WeekdayModifier::Third),
+            "fourth Wednesday" | "4th Wednesday" => (Weekday::Wednesday, WeekdayModifier::Fourth),
+            "Thursdays" => (Weekday::Thursday, WeekdayModifier::None),
+            "first Thursday" | "1st Thursday" => (Weekday::Thursday, WeekdayModifier::First),
+            "second Thursday" | "2nd Thursday" => (Weekday::Thursday, WeekdayModifier::Second),
+            "third Thursday" | "3rd Thursday" => (Weekday::Thursday, WeekdayModifier::Third),
+            "fourth Thursday" | "4th Thursday" => (Weekday::Thursday, WeekdayModifier::Fourth),
+            "Fridays" => (Weekday::Friday, WeekdayModifier::None),
+            "first Friday" | "1st Friday" => (Weekday::Friday, WeekdayModifier::First),
+            "second Friday" | "2nd Friday" => (Weekday::Friday, WeekdayModifier::Second),
+            "third Friday" | "3rd Friday" => (Weekday::Friday, WeekdayModifier::Third),
+            "fourth Friday" | "4th Friday" => (Weekday::Friday, WeekdayModifier::Fourth),
+            "Saturdays" => (Weekday::Saturday, WeekdayModifier::None),
+            "first Saturday" | "1st Saturday" => (Weekday::Saturday, WeekdayModifier::First),
+            "second Saturday" | "2nd Saturday" => (Weekday::Saturday, WeekdayModifier::Second),
+            "third Saturday" | "3rd Saturday" => (Weekday::Saturday, WeekdayModifier::Third),
+            "fourth Saturday" | "4th Saturday" => (Weekday::Saturday, WeekdayModifier::Fourth),
+            "Sundays" => (Weekday::Sunday, WeekdayModifier::None),
+            "first Sunday" | "1st Sunday" => (Weekday::Sunday, WeekdayModifier::First),
+            "second Sunday" | "2nd Sunday" => (Weekday::Sunday, WeekdayModifier::Second),
+            "third Sunday" | "3rd Sunday" => (Weekday::Sunday, WeekdayModifier::Third),
+            "fourth Sunday" | "4th Sunday" => (Weekday::Sunday, WeekdayModifier::Fourth),
+            _ => return Err(InvalidExpressionError::InvalidWeekdaySpec),
         };
-
-        let day = match raw_day {
-            "Monday" => Weekday::Monday,
-            "Tuesday" => Weekday::Tuesday,
-            "Wednesday" => Weekday::Wednesday,
-            "Thursday" => Weekday::Thursday,
-            "Friday" => Weekday::Friday,
-            "Saturday" => Weekday::Saturday,
-            "Sunday" => Weekday::Sunday,
-            _ => return Err(InvalidExpressionError::UnknownWeekday),
-        };
-
-        let spec = (day, modifier);
 
         if !days.contains(&spec) {
             days.push(spec);
@@ -383,24 +386,24 @@ mod tests {
 
     #[test]
     fn test_split_expression() {
-        let expression = "at 4 PM on Monday, at 6 PM on Thursday and at 3 AM";
-        let result = vec!["at 4 PM on Monday", "6 PM on Thursday", "3 AM"];
+        let expression = "at 4 PM on Mondays, at 6 PM on Thursdays and at 3 AM";
+        let result = vec!["at 4 PM on Mondays", "6 PM on Thursdays", "3 AM"];
         assert_eq!(split_expression(expression), result);
     }
 
     #[test]
     fn test_split_block() {
-        let block = "at 4 PM and 6 PM on Monday and Tuesday";
-        let result = ("4 PM and 6 PM", Some("Monday and Tuesday"), None);
+        let block = "at 4 PM and 6 PM on Mondays and Tuesdays";
+        let result = ("4 PM and 6 PM", Some("Mondays and Tuesdays"), None);
         assert_eq!(split_block(block).unwrap(), result);
     }
 
     #[test]
     fn test_split_block_with_week_mod() {
-        let block = "at 4 PM and 6 PM on Monday and Tuesday in odd weeks";
+        let block = "at 4 PM and 6 PM on Mondays and Tuesdays in odd weeks";
         let result = (
             "4 PM and 6 PM",
-            Some("Monday and Tuesday"),
+            Some("Mondays and Tuesdays"),
             Some("in odd weeks"),
         );
         assert_eq!(split_block(block).unwrap(), result);
@@ -408,7 +411,7 @@ mod tests {
 
     #[test]
     fn test_split_block_for_error() {
-        let block = "at 4 PM and 6 PM on Monday and on Tuesday";
+        let block = "at 4 PM and 6 PM on Mondays and on Tuesdays";
         assert_eq!(
             split_block(block).unwrap_err(),
             InvalidExpressionError::Syntax
@@ -480,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_parse_days() {
-        let expression = "Monday, Tuesday and Thursday";
+        let expression = "Mondays, Tuesdays and Thursdays";
         let result = vec![
             (Weekday::Monday, WeekdayModifier::None),
             (Weekday::Tuesday, WeekdayModifier::None),
@@ -491,7 +494,7 @@ mod tests {
 
     #[test]
     fn test_parse_days_for_duplicate_error() {
-        let expression = "Monday, Monday and Thursday";
+        let expression = "Mondays, Mondays and Thursdays";
         assert_eq!(
             parse_days(expression).unwrap_err(),
             InvalidExpressionError::DuplicateInput
@@ -500,7 +503,7 @@ mod tests {
 
     #[test]
     fn test_parse_days_with_modifiers() {
-        let expression = "the first Monday, Tuesday and the 4th Thursday";
+        let expression = "the first Monday, Tuesdays and the 4th Thursday";
         let result = vec![
             (Weekday::Monday, WeekdayModifier::First),
             (Weekday::Tuesday, WeekdayModifier::None),
@@ -511,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_parse_block_1() {
-        let expression = "at 5 PM (Monday and Thursday) in odd weeks";
+        let expression = "at 5 PM (Mondays and Thursdays) in odd weeks";
         let result = DateSpec {
             hours: vec![time!(17:00:00)],
             days: Some(vec![
@@ -525,7 +528,7 @@ mod tests {
 
     #[test]
     fn test_parse_block_2() {
-        let expression = "at 5 AM  and 6:30 PM (first Monday and Thursday)";
+        let expression = "at 5 AM  and 6:30 PM (first Monday and Thursdays)";
         let result = DateSpec {
             hours: vec![time!(05:00:00), time!(18:30:00)],
             days: Some(vec![
@@ -539,7 +542,7 @@ mod tests {
 
     #[test]
     fn test_parse_block_3() {
-        let expression = "at 6:30 AM and 6:30 PM on Monday and Friday in even weeks";
+        let expression = "at 6:30 AM and 6:30 PM on Mondays and Fridays in even weeks";
         let result = DateSpec {
             hours: vec![time!(06:30:00), time!(18:30:00)],
             days: Some(vec![
@@ -553,7 +556,7 @@ mod tests {
 
     #[test]
     fn test_parse_block_4() {
-        let expression = "at every full hour on Monday";
+        let expression = "at every full hour on Mondays";
         assert!(parse_block(expression).is_ok());
     }
 
