@@ -34,7 +34,10 @@
 //! | at 8 PM                | on Wednesdays and Sundays    |                  |
 //! | at 5 AM                | (Monday and Thursdays)       |                  |
 //! | at 6 AM and 6 PM       | (first Sunday)               |                  |
-//! | at 1 PM                | (first Monday and Thursdays) |                  |
+//! | at 1 PM                | (1st Monday and 2nd Friday)  |                  |
+//! | at 1 PM                | on the third Monday          |                  |
+//! | at 1 PM                | on the 3rd Monday            |                  |
+//! | at 1 PM                | on the 4th Saturday          |                  |
 //!
 //! The separate blocks (if its more than one) are then concatenated by commata or "and".
 //! Here are a few examples of complete expressions:
