@@ -2,7 +2,7 @@ use crate::error::*;
 use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
-use time::{Date, Duration, OffsetDateTime, PrimitiveDateTime, Time, Weekday};
+use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time, Weekday};
 
 /// A schedule that is built from an expression and can be iterated
 /// in order to compute the next date(s) that match the specification. By
@@ -37,7 +37,7 @@ impl FromStr for Schedule {
     /// use cron_lingo::Schedule;
     /// use std::str::FromStr;
     ///
-    /// let expr = "at 6 and 18 o'clock on Monday and Thursday in even weeks";
+    /// let expr = "at 6 AM on Mondays and Thursdays and at 6 PM on Sundays in even weeks";
     /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
@@ -114,6 +114,7 @@ impl Iterator for ScheduleIter {
     }
 }
 
+// Returns a selection of possible next dates according to the rules in a DateSpec.
 fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
     let mut candidates = vec![];
     let today = base.date();
@@ -295,7 +296,7 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
         let time = match Time::parse(item, "%-I %P") {
             Ok(t) => t,
             Err(_) => Time::parse(item, "%-I:%-M %P")
-                .map_err(|source| InvalidExpressionError::InvalidHourSpec(source))?,
+                .map_err(|source| InvalidExpressionError::TimeParse(source))?,
         };
 
         if times.contains(&time) {
@@ -475,7 +476,7 @@ mod tests {
         let expression = "1 AM and 5:30";
         assert_eq!(
             parse_times(expression).unwrap_err(),
-            InvalidExpressionError::InvalidHourSpec(time::ParseError::UnexpectedEndOfString)
+            InvalidExpressionError::TimeParse(time::ParseError::UnexpectedEndOfString)
         );
     }
 

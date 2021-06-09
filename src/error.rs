@@ -8,12 +8,9 @@ pub enum InvalidExpressionError {
     EmptyExpression,
     Syntax,
     DuplicateInput,
-    UnknownWeekday,
     InvalidWeekSpec,
     InvalidWeekdaySpec,
-    InvalidWeekdayModifier,
-    InvalidHourSpec(time::ParseError),
-    ParseHour,
+    TimeParse(time::ParseError),
 }
 
 impl fmt::Display for InvalidExpressionError {
@@ -22,12 +19,9 @@ impl fmt::Display for InvalidExpressionError {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
             Self::Syntax => SyntaxError.fmt(f),
             Self::DuplicateInput => DuplicateInputError.fmt(f),
-            Self::UnknownWeekday => UnknownWeekdayError.fmt(f),
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
             Self::InvalidWeekdaySpec => InvalidWeekdaySpecError.fmt(f),
-            Self::InvalidWeekdayModifier => InvalidWeekdayModifierError.fmt(f),
-            Self::InvalidHourSpec(e) => e.fmt(f),
-            Self::ParseHour => ParseHourError.fmt(f),
+            Self::TimeParse(e) => e.fmt(f),
         }
     }
 }
@@ -71,19 +65,6 @@ impl fmt::Display for DuplicateInputError {
 
 impl Error for DuplicateInputError {}
 
-/// An error indicating that some word in the weekday spec of an
-/// expression cannot be parsed.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct UnknownWeekdayError;
-
-impl fmt::Display for UnknownWeekdayError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression contains invalid weekday input")
-    }
-}
-
-impl Error for UnknownWeekdayError {}
-
 /// An error indicating that the week spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -113,44 +94,15 @@ impl fmt::Display for InvalidWeekdaySpecError {
 
 impl Error for InvalidWeekdaySpecError {}
 
-/// An error indicating that the weekday modifier of an expression contains
-/// invalid input or does not adhere to the prescribed syntax.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct InvalidWeekdayModifierError;
-
-impl fmt::Display for InvalidWeekdayModifierError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "the expression contains an invalid weekday modifier, must be one of {{first, 1st, second, 2nd, third, 3rd, fourth, 4th}}"
-        )
-    }
-}
-
-impl Error for InvalidWeekdayModifierError {}
-
-/// An error indicating that the hour spec of an expression contains
-/// invalid input or does not adhere to the prescribed syntax.
 #[derive(Debug, Clone, PartialEq)]
-pub struct InvalidHourSpecError {
+pub struct TimeParseError {
     pub source: time::ParseError,
 }
 
-impl fmt::Display for InvalidHourSpecError {
+impl fmt::Display for TimeParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression contains invalid input for the hour spec")
+        write!(f, "failed to parse a time specification")
     }
 }
 
-impl Error for InvalidHourSpecError {}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct ParseHourError;
-
-impl fmt::Display for ParseHourError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "failed to parse part of the hour spec")
-    }
-}
-
-impl Error for ParseHourError {}
+impl Error for TimeParseError {}
