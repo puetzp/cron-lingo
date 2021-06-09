@@ -1,6 +1,6 @@
 //! This crate allows to parse a cron-like, human-readable expression.
-//! The resulting object can be turned into an iterator to compute the next
-//! `time::OffsetDateTime` one at a time.
+//! The resulting object can be turned into an iterator to compute the next date
+//! (as a `time::OffsetDateTime`) one at a time.
 //!
 //! The basic idea was to strip down the set of features that we know from our favorite
 //! implementation of cron in order to keep the results predictable, which may or may
@@ -11,7 +11,7 @@
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
 //!
-//! let expr = "at 9 o'clock on Monday and Friday";
+//! let expr = "at 6 AM on Mondays and Thursdays and at 6 PM on Sundays in even weeks";
 //! let schedule = Schedule::from_str(expr).unwrap();
 //! assert!(schedule.iter().next().is_some());
 //! ```

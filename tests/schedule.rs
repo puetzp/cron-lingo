@@ -3,6 +3,6 @@ use std::str::FromStr;
 
 #[test]
 fn test_schedule() {
-    let expr = "at 17 o'clock on Tuesday and Thursday in odd weeks";
+    let expr = "at 6 AM on Mondays and Thursdays and at 6 PM on Sundays in even weeks";
     assert!(Schedule::from_str(expr).is_ok());
 }
