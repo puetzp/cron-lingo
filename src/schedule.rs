@@ -143,16 +143,18 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
     if let Some(ref days) = spec.days {
         let weeks = spec.weeks.clone();
 
-        candidates
-            .iter_mut()
+        candidates = candidates
+            .into_iter()
             .filter(|c| days.iter().any(|x| x.0 == c.weekday()))
-            .for_each(|candidate| {
-                let day_modifier = days.iter().find(|x| x.0 == candidate.weekday()).unwrap().1;
+            .collect();
 
-                while !check_date_validity(candidate, day_modifier, weeks) {
-                    *candidate += Duration::week();
-                }
-            });
+        for candidate in &mut candidates {
+            let day_modifier = days.iter().find(|x| x.0 == candidate.weekday()).unwrap().1;
+
+            while !check_date_validity(candidate, day_modifier, weeks) {
+                *candidate += Duration::week();
+            }
+        }
     }
 
     // ... and return the filtered date candidates of this DateSpec.
@@ -696,6 +698,33 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(01:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(01:00:00)).assume_utc(),
             PrimitiveDateTime::new(date!(2021 - 06 - 12), time!(01:00:00)).assume_utc(),
+        ];
+
+        assert_eq!(
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_schedule_iteration_2() {
+        let schedule = Schedule {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            specs: vec![DateSpec {
+                hours: vec![time!(13:00:00)],
+                days: Some(vec![(Weekday::Monday, None)]),
+                weeks: None,
+            }],
+        };
+
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(13:00:00)).assume_utc(),
         ];
 
         assert_eq!(
