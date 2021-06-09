@@ -736,4 +736,84 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_schedule_iteration_3() {
+        let schedule = Schedule {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            specs: vec![DateSpec {
+                hours: vec![time!(06:00:00), time!(13:00:00)],
+                days: Some(vec![
+                    (Weekday::Monday, Some(WeekdayModifier::Third)),
+                    (Weekday::Thursday, None),
+                ]),
+                weeks: None,
+            }],
+        };
+
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(13:00:00)).assume_utc(),
+        ];
+
+        assert_eq!(
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(8)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_schedule_iteration_4() {
+        let schedule = Schedule {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            specs: vec![
+                DateSpec {
+                    hours: vec![time!(06:00:00), time!(13:00:00)],
+                    days: Some(vec![
+                        (Weekday::Monday, Some(WeekdayModifier::Third)),
+                        (Weekday::Thursday, None),
+                    ]),
+                    weeks: None,
+                },
+                DateSpec {
+                    hours: vec![time!(18:00:00)],
+                    days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+                    weeks: Some(WeekVariant::Odd),
+                },
+            ],
+        };
+
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(13:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 26), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(13:00:00)).assume_utc(),
+        ];
+
+        assert_eq!(
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(11)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
 }
