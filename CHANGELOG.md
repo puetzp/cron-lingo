@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `skip_outdated()` method to ScheduleIter to override default behaviour in `next()`. By default `next()` will never return a date that is in the past, but instead resume the iteration from the current local time.
 ### Changed
 - Rename Timetable to Schedule
+- Complete expression syntax overhaul to offer more possibilities
 
 ## [0.2.2] - 2021-05-25
 ### Changed
