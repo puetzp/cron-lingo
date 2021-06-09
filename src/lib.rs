@@ -18,32 +18,32 @@
 //!
 //! # Expression syntax
 //!
-//! The syntax is quite limited, but intentionally so.
+//! An expression consists of {1, n} blocks. Each block contains a specification according
+//! to the following rules:
 //!
-//! Here are a few examples:
+//! | Hour                   | Weekday (optional)           | Week (optional)  |
+//! | ---------------------- | ---------------------------- | ---------------- |
+//! | at every full hour     | on Mondays and Tuesdays      | in odd weeks     |
+//! | at 7 AM and 7 PM       | on Tuesdays, Saturdays       | in even weeks    |
+//! | at 6 AM, 6 PM and 8 PM | on Fridays                   |                  |
+//! | at 6 AM, 12 AM, 6 PM   |                              |                  |
+//! | at 8 AM                |                              | in odd weeks     |
+//! | at 8 AM                | on Wednesdays                |                  |
+//! | at 8 AM                | on the first Monday          |                  |
+//! | at 8 PM                | on the 4th Friday            | in even weeks    |
+//! | at 8 PM                | on Wednesdays and Sundays    |                  |
+//! | at 5 AM                | (Monday and Thursdays)       |                  |
+//! | at 6 AM and 6 PM       | (first Sunday)               |                  |
+//! | at 1 PM                | (first Monday and Thursdays) |                  |
 //!
-//! | Hour                   | Weekday (optional)      | Week (optional)                 |
-//! | ---------------------- | ----------------------- | ------------------------------- |
-//! | at every hour          | on Monday and Tuesday   | in odd weeks                    |
-//! | at 7 and 8 o'clock     | on Tuesday, Saturday    | in even weeks                   |
-//! | at 7, 8 and 16 o'clock | on Friday               |                                 |
-//! | at 6, 12, 18 o'clock   |                         |                                 |
-//! | at 8 o'clock           |                         | in odd weeks                    |
-//! | at 8 o'clock           | on Wednesday            | in the first week of the month  |
-//! | at 8 o'clock           | on Wednesday            | in the second week of the month |
-//! | at 8 o'clock           | on Wednesday            | in the third week of the month  |
-//! | at 8 o'clock           | on Wednesday and Sunday | in the fourth week of the month |
+//! The separate blocks (if its more than one) are then concatenated by commata or "and".
+//! Here are a few examples of complete expressions:
 //!
-//! The examples are quite self-explanatory, but the last four may need some clarification:
-//! In the final example, `next()` could return the date of the fourth Wednesday of this month
-//! (or the next if the current one is in the past). But only if the fourth Sunday of this
-//! month does not predate the fourth Wednesday, which may be the case when the month in question
-//! begins on e.g. Friday.
+//! * at 1 AM and at 6 PM on Saturdays and Sundays
+//! * at 6 AM on Mondays and at 6 PM on Thursdays
+//! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
+//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6 PM on Wednesdays in odd weeks and at 1 AM
 //!
-//! As you can also see in the table above the column "Week" does not depend on the second block
-//! "Weekday". However omitting the Weekday spec. rarely makes sense. The example in row #5 would
-//! (assuming now is a Sunday in an even week) return a `time::OffsetDateTime` for the next seven
-//! days ... and then put in a break for the following week.
 pub mod error;
 pub mod schedule;
 mod types;
