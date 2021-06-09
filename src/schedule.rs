@@ -110,6 +110,8 @@ impl Iterator for ScheduleIter {
             .min_by_key(|d| **d - self.current)
             .unwrap();
 
+        self.current = *next_date;
+
         Some(*next_date)
     }
 }
@@ -127,7 +129,7 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
             let mut date =
                 PrimitiveDateTime::new(today + Duration::days(i), time).assume_offset(offset);
 
-            if date < base {
+            if date <= base {
                 date += Duration::week();
             }
 
@@ -677,5 +679,32 @@ mod tests {
             PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(18:00:00)).assume_utc(),
         ];
         assert_eq!(compute_dates(base, spec).sort(), result.sort());
+    }
+
+    #[test]
+    fn test_schedule_iteration_1() {
+        let schedule = Schedule {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            specs: vec![DateSpec {
+                hours: vec![time!(01:00:00)],
+                days: None,
+                weeks: None,
+            }],
+        };
+
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(01:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(01:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 12), time!(01:00:00)).assume_utc(),
+        ];
+
+        assert_eq!(
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(3)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
     }
 }
