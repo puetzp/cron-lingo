@@ -132,77 +132,64 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
 
             candidates.push(date);
         }
-
-        // ... remove all objects that match none of the desired weekdays (if any)
-        // and increment the remaining dates according to the optional WeekdayModifier
-        // and WeekVariant ...
-        if let Some(ref days) = spec.days {
-            candidates
-                .iter_mut()
-                .filter(|c| days.iter().any(|x| x.0 == c.weekday()))
-                .for_each(|candidate| {
-                    let day_spec = days.iter().find(|x| x.0 == candidate.weekday()).unwrap();
-                    let day = candidate.day();
-
-                    if let Some(modifier) = day_spec.1 {
-                        match modifier {
-                            WeekdayModifier::First => {
-                                if day > 7 {
-                                    *candidate = wrap_to_next_month(candidate, 7);
-                                }
-                            }
-                            WeekdayModifier::Second => {
-                                if day > 14 {
-                                    *candidate = wrap_to_next_month(candidate, 14);
-                                } else if day <= 7 {
-                                    *candidate += Duration::week();
-                                }
-                            }
-                            WeekdayModifier::Third => {
-                                if day > 21 {
-                                    *candidate = wrap_to_next_month(candidate, 21);
-                                } else if day <= 7 {
-                                    *candidate += Duration::weeks(2);
-                                } else if day <= 14 {
-                                    *candidate += Duration::week();
-                                }
-                            }
-                            WeekdayModifier::Fourth => {
-                                if day > 28 {
-                                    *candidate = wrap_to_next_month(candidate, 28);
-                                } else if day <= 7 {
-                                    *candidate += Duration::weeks(2);
-                                } else if day <= 14 {
-                                    *candidate += Duration::week();
-                                } else if day <= 21 {
-                                    *candidate += Duration::week();
-                                }
-                            }
-                        }
-                    }
-                });
-        }
     }
 
+    // ... remove all objects that match none of the desired weekdays (if any)
+    // and increment the remaining dates according to the optional WeekdayModifier
+    // and WeekVariant.
+    if let Some(ref days) = spec.days {
+        let weeks = spec.weeks.clone();
+
+        candidates
+            .iter_mut()
+            .filter(|c| days.iter().any(|x| x.0 == c.weekday()))
+            .for_each(|candidate| {
+                let day_modifier = days.iter().find(|x| x.0 == candidate.weekday()).unwrap().1;
+
+                while !check_date_validity(candidate, day_modifier, weeks) {
+                    *candidate += Duration::week();
+                }
+            });
+    }
+
+    // ... and return the filtered date candidates of this DateSpec.
     candidates
 }
 
-// Wrap to a specific date (specific weekday and week) in the next month
-// based on the weekday of the first day of the next month and an offset.
-fn wrap_to_next_month(date: &OffsetDateTime, off: u8) -> OffsetDateTime {
-    let offset = date.offset();
-    let first_next = get_first_of_next_month(date.date());
-    let delta = date.weekday().number_from_monday() - first_next.weekday().number_from_monday();
-    let addend = if delta >= 0 { delta } else { off - delta };
-    let new_date = first_next + Duration::days(addend.into());
-    PrimitiveDateTime::new(new_date, date.time()).assume_offset(offset)
-}
+// Takes a date and checks its bounds according to optional WeekdayModifiers
+// and/or WeekVariants. Returns false if the date does not match the specified rules.
+fn check_date_validity(
+    date: &OffsetDateTime,
+    weekday_mod: Option<WeekdayModifier>,
+    week_mod: Option<WeekVariant>,
+) -> bool {
+    let is_correct_day = match weekday_mod {
+        Some(modifier) => {
+            let day = date.day();
 
-fn get_first_of_next_month(date: Date) -> Date {
-    match Date::try_from_ymd(date.year(), date.month() + 1, 1) {
-        Ok(d) => d,
-        Err(_) => Date::try_from_ymd(date.year() + 1, 1, 1).unwrap(),
-    }
+            match modifier {
+                WeekdayModifier::First => day <= 7,
+                WeekdayModifier::Second => day > 7 && day <= 14,
+                WeekdayModifier::Third => day > 14 && day <= 21,
+                WeekdayModifier::Fourth => day > 21 && day <= 28,
+            }
+        }
+        None => true,
+    };
+
+    let is_correct_week = match week_mod {
+        Some(modifier) => {
+            let week = date.week();
+
+            match modifier {
+                WeekVariant::Even => week % 2 == 0,
+                WeekVariant::Odd => week % 2 != 0,
+            }
+        }
+        None => true,
+    };
+
+    is_correct_day && is_correct_week
 }
 
 // Split an expression into multiple distinct blocks that may be separated
