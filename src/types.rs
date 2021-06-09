@@ -5,7 +5,6 @@ use time::{Time, Weekday};
 pub(crate) enum WeekVariant {
     Even,
     Odd,
-    None,
 }
 /*
 impl WeekVariant {
@@ -13,7 +12,6 @@ impl WeekVariant {
         match self {
             Self::Even => date.week() % 2 == 0,
             Self::Odd => date.week() % 2 != 0,
-            Self::None => true,
         }
     }
 }
@@ -24,12 +22,11 @@ pub(crate) enum WeekdayModifier {
     Second,
     Third,
     Fourth,
-    None,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub(crate) struct DateSpec {
     pub hours: Vec<Time>,
-    pub days: Option<Vec<(Weekday, WeekdayModifier)>>,
-    pub weeks: WeekVariant,
+    pub days: Option<Vec<(Weekday, Option<WeekdayModifier>)>>,
+    pub weeks: Option<WeekVariant>,
 }
