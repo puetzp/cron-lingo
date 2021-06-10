@@ -24,28 +24,28 @@
 //! | Hour                   | Weekday (optional)           | Week (optional)  |
 //! | ---------------------- | ---------------------------- | ---------------- |
 //! | at every full hour     | on Mondays and Tuesdays      | in odd weeks     |
-//! | at 7 AM and 7 PM       | on Tuesdays, Saturdays       | in even weeks    |
+//! | at 7:30 AM and 7:30 PM | on Tuesdays, Saturdays       | in even weeks    |
 //! | at 6 AM, 6 PM and 8 PM | on Fridays                   |                  |
 //! | at 6 AM, 12 AM, 6 PM   |                              |                  |
-//! | at 8 AM                |                              | in odd weeks     |
+//! | at 8:30 AM             |                              | in odd weeks     |
 //! | at 8 AM                | on Wednesdays                |                  |
 //! | at 8 AM                | on the first Monday          |                  |
 //! | at 8 PM                | on the 4th Friday            | in even weeks    |
 //! | at 8 PM                | on Wednesdays and Sundays    |                  |
-//! | at 5 AM                | (Monday and Thursdays)       |                  |
+//! | at 5:45 AM             | (Monday and Thursdays)       |                  |
 //! | at 6 AM and 6 PM       | (first Sunday)               |                  |
-//! | at 1 PM                | (1st Monday and 2nd Friday)  |                  |
+//! | at 1:15 PM             | (1st Monday and 2nd Friday)  |                  |
 //! | at 1 PM                | on the third Monday          |                  |
-//! | at 1 PM                | on the 3rd Monday            |                  |
+//! | at 1:50 PM             | on the 3rd Monday            |                  |
 //! | at 1 PM                | on the 4th Saturday          |                  |
 //!
 //! The separate blocks (if its more than one) are then concatenated by commata or "and".
 //! Here are a few examples of complete expressions:
 //!
 //! * at 1 AM and at 6 PM on Saturdays and Sundays
-//! * at 6 AM on Mondays and at 6 PM on Thursdays
+//! * at 6:30 AM on Mondays and at 6 PM on Thursdays
 //! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
-//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6 PM on Wednesdays in odd weeks and at 1 AM
+//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6:45 PM on Wednesdays in odd weeks and at 1 AM
 //!
 pub mod error;
 pub mod schedule;
