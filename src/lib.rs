@@ -22,16 +22,12 @@
 //! a time specification, and optionally a weekday and week specification.
 //! Separate blocks (if there is more than one) are then concatenated by commata or "and":
 //!
-//! <time spec> [<weekday spec>] [<week spec>] [,|and ...]
+//! > \<time spec\> [\<weekday spec\>] [\<week spec\>] [,|and ...]
 //!
-//! Here are a few examples of complete expressions (with some extra whitespace for clarity):
+//! Here are a few examples of complete expressions:
 //!
-//! * at 1 AM  and  at 6 PM on Saturdays and Sundays
-//!   <block>  +    <block>
-//!
-//! * at 2 PM (Mondays, Thursdays) in even weeks ,  at 6:45 PM on Wednesdays in odd weeks  and  at 1 AM
-//!   <block>                                    +  <block>                                +    <block>
-//!
+//! * at 1 AM and at 6 PM on Saturdays and Sundays
+//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6:45 PM on Wednesdays in odd weeks and at 1 AM
 //! * at 6:30 AM on Mondays and at 6 PM on Thursdays
 //! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
 //!
@@ -71,7 +67,7 @@
 //! * must start with _at_
 //! * then follows either _every full hour_ OR a list of distinct _times_
 //! * a _time_ adheres to the 12-hour-clock, so a number from 1 to 12 followed by _AM_ or _PM_ (uppercase!), e.g. 1 AM or 1 PM
-//! * a time may also contain _minutes_ from 00 to 59 (separated from the hour by a _colon). Omitting the minutes means
+//! * a time may also contain _minutes_ from 00 to 59 (separated from the hour by a _colon_). Omitting the minutes means
 //! _on the hour_, e.g. 8 PM == 8:00 PM
 //! * distinct times are concatenated by _commata_ or _and_
 //!
@@ -81,7 +77,8 @@
 //! * succeeds the _time spec_
 //! * consists of a list of _weekdays_ with optional _modifiers_ to select only specific weekdays in a month.
 //! * the list either starts with _on_ OR is enclosed by simple braces _()_ for compactness
-//! * a weekday must be one of [Monday__s__|Tuesday__s__|Wednesday__s__|Thursday__s__|Friday__s__|Saturday__s__|Sunday__s__] if _every_ e.g. Monday is to be included OR one of [Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday] preceded by a modifier [first|1st|second|2nd|third|3rd|fourth|4th] in order to include only specific weekdays in a month.
+//! * a weekday must be one of [ Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday ] appended with an ***s*** if e.g. _every_ Monday is to be included OR a weekday preceded by a modifier [ first | 1st | second | 2nd | third | 3rd | fourth | 4th ] in order to include only specific weekdays in a month.
+//! * illogical combinations like "on Mondays and the first Monday" result in an error
 //!
 //! ### Week specification
 //!
