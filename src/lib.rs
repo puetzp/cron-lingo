@@ -18,10 +18,26 @@
 //!
 //! # Expression syntax
 //!
-//! An expression consists of {1, n} blocks. Each block contains a specification according
-//! to the following rules:
+//! An expression consists of {1, n} blocks. Each block consists of three parts:
+//! a time specification, and optionally a weekday and week specification.
+//! Separate blocks (if there is more than one) are then concatenated by commata or "and":
 //!
-//! | Hour                   | Weekday (optional)           | Week (optional)  |
+//! <time spec> [<weekday spec>] [<week spec>] [,|and ...]
+//!
+//! Here are a few examples of complete expressions (with some extra whitespace for clarity):
+//!
+//! * at 1 AM  and  at 6 PM on Saturdays and Sundays
+//!   <block>  +    <block>
+//!
+//! * at 2 PM (Mondays, Thursdays) in even weeks ,  at 6:45 PM on Wednesdays in odd weeks  and  at 1 AM
+//!   <block>                                    +  <block>                                +    <block>
+//!
+//! * at 6:30 AM on Mondays and at 6 PM on Thursdays
+//! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
+//!
+//! This table gives some more examples for each type of specification in a block:
+//!
+//! | Times                  | Weekday (optional)           | Week (optional)  |
 //! | ---------------------- | ---------------------------- | ---------------- |
 //! | at every full hour     | on Mondays and Tuesdays      | in odd weeks     |
 //! | at 7:30 AM and 7:30 PM | on Tuesdays, Saturdays       | in even weeks    |
@@ -39,14 +55,38 @@
 //! | at 1:50 PM             | on the 3rd Monday            |                  |
 //! | at 1 PM                | on the 4th Saturday          |                  |
 //!
-//! The separate blocks (if its more than one) are then concatenated by commata or "and".
-//! Here are a few examples of complete expressions:
+//! ## Ruleset
 //!
-//! * at 1 AM and at 6 PM on Saturdays and Sundays
-//! * at 6:30 AM on Mondays and at 6 PM on Thursdays
-//! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
-//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6:45 PM on Wednesdays in odd weeks and at 1 AM
+//! The examples above cover the basic rules of the expression syntax to a certain (and for most use cases
+//! probably sufficient) extent.
+//! Nevertheless, here is a list of "rules" that an expression must comply with and that you might find useful to avoid mistakes:
 //!
+//! ### Expression
+//!
+//! * consists of at least one _block_. Multiple blocks are concatenated by _commata_ or _and_
+//! * a block consists of three parts: a mandatory _time specification_ and optional _weekday_ and _week specifications_
+//!
+//! ### Times specification
+//!
+//! * must start with _at_
+//! * then follows either _every full hour_ OR a list of distinct _times_
+//! * a _time_ adheres to the 12-hour-clock, so a number from 1 to 12 followed by _AM_ or _PM_ (uppercase!), e.g. 1 AM or 1 PM
+//! * a time may also contain _minutes_ from 00 to 59 (separated from the hour by a _colon). Omitting the minutes means
+//! _on the hour_, e.g. 8 PM == 8:00 PM
+//! * distinct times are concatenated by _commata_ or _and_
+//!
+//! ### Weekday specification
+//!
+//! * is _optional_
+//! * succeeds the _time spec_
+//! * consists of a list of _weekdays_ with optional _modifiers_ to select only specific weekdays in a month.
+//! * the list either starts with _on_ OR is enclosed by simple braces _()_ for compactness
+//! * a weekday must be one of [Monday__s__|Tuesday__s__|Wednesday__s__|Thursday__s__|Friday__s__|Saturday__s__|Sunday__s__] if _every_ e.g. Monday is to be included OR one of [Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday] preceded by a modifier [first|1st|second|2nd|third|3rd|fourth|4th] in order to include only specific weekdays in a month.
+//!
+//! ### Week specification
+//!
+//! * is _optional_
+//! * must be one of _in even weeks_ / _in odd weeks_
 pub mod error;
 pub mod schedule;
 mod types;
