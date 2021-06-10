@@ -8,6 +8,7 @@ pub enum InvalidExpressionError {
     EmptyExpression,
     Syntax,
     DuplicateInput,
+    IllogicalWeekdayCombination,
     InvalidWeekSpec,
     InvalidWeekdaySpec,
     TimeParse(time::ParseError),
@@ -19,6 +20,7 @@ impl fmt::Display for InvalidExpressionError {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
             Self::Syntax => SyntaxError.fmt(f),
             Self::DuplicateInput => DuplicateInputError.fmt(f),
+            Self::IllogicalWeekdayCombination => IllogicalWeekdayCombinationError.fmt(f),
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
             Self::InvalidWeekdaySpec => InvalidWeekdaySpecError.fmt(f),
             Self::TimeParse(e) => e.fmt(f),
@@ -64,6 +66,22 @@ impl fmt::Display for DuplicateInputError {
 }
 
 impl Error for DuplicateInputError {}
+
+/// This error points to illogical combinations of weekdays and its modifiers,
+/// e.g. "on Mondays and the first Monday".
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct IllogicalWeekdayCombinationError;
+
+impl fmt::Display for IllogicalWeekdayCombinationError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "the expression contains an illogical combination of weekdays"
+        )
+    }
+}
+
+impl Error for IllogicalWeekdayCombinationError {}
 
 /// An error indicating that the week spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.

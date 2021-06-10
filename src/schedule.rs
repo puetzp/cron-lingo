@@ -317,7 +317,7 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
 fn parse_days(
     expression: &str,
 ) -> Result<Vec<(Weekday, Option<WeekdayModifier>)>, InvalidExpressionError> {
-    let mut days = Vec::new();
+    let mut days: Vec<(Weekday, Option<WeekdayModifier>)> = vec![];
 
     for item in expression.replace("and", ",").split(',') {
         let spec = match item.trim().trim_start_matches("the").trim() {
@@ -375,6 +375,22 @@ fn parse_days(
             _ => return Err(InvalidExpressionError::InvalidWeekdaySpec),
         };
 
+        // Check if the result vector already contains a combination of Weekday + Modifier
+        // that is incompatible with the spec that is to be added, e.g:
+        // "on the first Monday" and "on Mondays".
+        if (spec.1.is_some()
+            && days
+                .iter()
+                .any(|other| other.0 == spec.0 && other.1.is_none()))
+            || (spec.1.is_none()
+                && days
+                    .iter()
+                    .any(|other| other.0 == spec.0 && other.1.is_some()))
+        {
+            return Err(InvalidExpressionError::IllogicalWeekdayCombination);
+        }
+
+        // Check if this exact combination of Weekday + Modifier was already processed before.
         if !days.contains(&spec) {
             days.push(spec);
         } else {
@@ -514,12 +530,31 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_days_with_modifiers() {
+    fn test_parse_days_for_duplicate_error_with_modifiers() {
+        let expression = "the 1st Monday, Mondays and Thursdays";
+        assert_eq!(
+            parse_days(expression).unwrap_err(),
+            InvalidExpressionError::IllogicalWeekdayCombination
+        );
+    }
+
+    #[test]
+    fn test_parse_days_with_modifiers_1() {
         let expression = "the first Monday, Tuesdays and the 4th Thursday";
         let result = vec![
             (Weekday::Monday, Some(WeekdayModifier::First)),
             (Weekday::Tuesday, None),
             (Weekday::Thursday, Some(WeekdayModifier::Fourth)),
+        ];
+        assert_eq!(parse_days(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_days_with_modifiers_2() {
+        let expression = "the first Monday and the 3rd Monday";
+        let result = vec![
+            (Weekday::Monday, Some(WeekdayModifier::First)),
+            (Weekday::Monday, Some(WeekdayModifier::Third)),
         ];
         assert_eq!(parse_days(expression).unwrap(), result);
     }
