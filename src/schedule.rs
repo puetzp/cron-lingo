@@ -22,7 +22,7 @@ impl Schedule {
     pub fn iter(&self) -> ScheduleIter {
         ScheduleIter {
             schedule: self.clone(),
-            current: self.base.clone(),
+            current: self.base,
             skip_outdated: true,
         }
     }
@@ -42,7 +42,7 @@ impl FromStr for Schedule {
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         if expression.is_empty() {
-            return Err(InvalidExpressionError::EmptyExpression.into());
+            return Err(InvalidExpressionError::EmptyExpression);
         }
 
         let blocks: Vec<&str> = split_expression(expression);
@@ -141,7 +141,7 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
     // and increment the remaining dates according to the optional WeekdayModifier
     // and WeekVariant.
     if let Some(ref days) = spec.days {
-        let weeks = spec.weeks.clone();
+        let weeks = spec.weeks;
 
         candidates = candidates
             .into_iter()
@@ -271,7 +271,7 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>, Option<&str>), Invali
 
                     Ok((times, Some(days), weeks))
                 }
-                None => return Err(InvalidExpressionError::Syntax),
+                None => Err(InvalidExpressionError::Syntax),
             },
             None => {
                 let times = remainder.trim_start_matches("at").trim();
@@ -299,8 +299,7 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
     for item in expression.split(',').map(|x| x.trim()) {
         let time = match Time::parse(item, "%-I %P") {
             Ok(t) => t,
-            Err(_) => Time::parse(item, "%-I:%-M %P")
-                .map_err(|source| InvalidExpressionError::TimeParse(source))?,
+            Err(_) => Time::parse(item, "%-I:%-M %P").map_err(InvalidExpressionError::TimeParse)?,
         };
 
         if times.contains(&time) {
