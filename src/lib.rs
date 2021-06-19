@@ -50,6 +50,7 @@
 //! | at 1 PM                | on the third Monday          |                  |
 //! | at 1:50 PM             | on the 3rd Monday            |                  |
 //! | at 1 PM                | on the 4th Saturday          |                  |
+//! | at 6 PM                | on the last Monday           |                  |
 //!
 //! ## Ruleset
 //!
@@ -77,7 +78,7 @@
 //! * succeeds the _time spec_
 //! * consists of a list of _weekdays_ with optional _modifiers_ to select only specific weekdays in a month.
 //! * the list either starts with _on_ OR is enclosed by simple braces _()_ for compactness
-//! * a weekday must be one of [ Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday ] appended with an ***s*** if e.g. _every_ Monday is to be included OR a weekday preceded by a modifier [ first | 1st | second | 2nd | third | 3rd | fourth | 4th ] in order to include only specific weekdays in a month.
+//! * a weekday must be one of [ Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday ] appended with an ***s*** if e.g. _every_ Monday is to be included OR a weekday preceded by a modifier [ first | 1st | second | 2nd | third | 3rd | fourth | 4th | last ] in order to include only specific weekdays in a month.
 //! * illogical combinations like "on Mondays and the first Monday" result in an error
 //!
 //! ### Week specification
