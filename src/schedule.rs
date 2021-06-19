@@ -177,6 +177,7 @@ fn check_date_validity(
                 WeekdayModifier::Second => day > 7 && day <= 14,
                 WeekdayModifier::Third => day > 14 && day <= 21,
                 WeekdayModifier::Fourth => day > 21 && day <= 28,
+                WeekdayModifier::Last => date.month() < (*date + Duration::week()).month(),
             }
         }
         None => true,
@@ -325,11 +326,13 @@ fn parse_days(
             "second Monday" | "2nd Monday" => (Weekday::Monday, Some(WeekdayModifier::Second)),
             "third Monday" | "3rd Monday" => (Weekday::Monday, Some(WeekdayModifier::Third)),
             "fourth Monday" | "4th Monday" => (Weekday::Monday, Some(WeekdayModifier::Fourth)),
+            "last Monday" => (Weekday::Monday, Some(WeekdayModifier::Last)),
             "Tuesdays" => (Weekday::Tuesday, None),
             "first Tuesday" | "1st Tuesday" => (Weekday::Tuesday, Some(WeekdayModifier::First)),
             "second Tuesday" | "2nd Tuesday" => (Weekday::Tuesday, Some(WeekdayModifier::Second)),
             "third Tuesday" | "3rd Tuesday" => (Weekday::Tuesday, Some(WeekdayModifier::Third)),
             "fourth Tuesday" | "4th Tuesday" => (Weekday::Tuesday, Some(WeekdayModifier::Fourth)),
+            "last Tuesday" => (Weekday::Tuesday, Some(WeekdayModifier::Last)),
             "Wednesdays" => (Weekday::Wednesday, None),
             "first Wednesday" | "1st Wednesday" => {
                 (Weekday::Wednesday, Some(WeekdayModifier::First))
@@ -343,6 +346,7 @@ fn parse_days(
             "fourth Wednesday" | "4th Wednesday" => {
                 (Weekday::Wednesday, Some(WeekdayModifier::Fourth))
             }
+            "last Wednesday" => (Weekday::Wednesday, Some(WeekdayModifier::Last)),
             "Thursdays" => (Weekday::Thursday, None),
             "first Thursday" | "1st Thursday" => (Weekday::Thursday, Some(WeekdayModifier::First)),
             "second Thursday" | "2nd Thursday" => {
@@ -352,11 +356,13 @@ fn parse_days(
             "fourth Thursday" | "4th Thursday" => {
                 (Weekday::Thursday, Some(WeekdayModifier::Fourth))
             }
+            "last Thursday" => (Weekday::Thursday, Some(WeekdayModifier::Last)),
             "Fridays" => (Weekday::Friday, None),
             "first Friday" | "1st Friday" => (Weekday::Friday, Some(WeekdayModifier::First)),
             "second Friday" | "2nd Friday" => (Weekday::Friday, Some(WeekdayModifier::Second)),
             "third Friday" | "3rd Friday" => (Weekday::Friday, Some(WeekdayModifier::Third)),
             "fourth Friday" | "4th Friday" => (Weekday::Friday, Some(WeekdayModifier::Fourth)),
+            "last Friday" => (Weekday::Friday, Some(WeekdayModifier::Last)),
             "Saturdays" => (Weekday::Saturday, None),
             "first Saturday" | "1st Saturday" => (Weekday::Saturday, Some(WeekdayModifier::First)),
             "second Saturday" | "2nd Saturday" => {
@@ -366,11 +372,13 @@ fn parse_days(
             "fourth Saturday" | "4th Saturday" => {
                 (Weekday::Saturday, Some(WeekdayModifier::Fourth))
             }
+            "last Saturday" => (Weekday::Saturday, Some(WeekdayModifier::Last)),
             "Sundays" => (Weekday::Sunday, None),
             "first Sunday" | "1st Sunday" => (Weekday::Sunday, Some(WeekdayModifier::First)),
             "second Sunday" | "2nd Sunday" => (Weekday::Sunday, Some(WeekdayModifier::Second)),
             "third Sunday" | "3rd Sunday" => (Weekday::Sunday, Some(WeekdayModifier::Third)),
             "fourth Sunday" | "4th Sunday" => (Weekday::Sunday, Some(WeekdayModifier::Fourth)),
+            "last Sunday" => (Weekday::Sunday, Some(WeekdayModifier::Last)),
             _ => return Err(InvalidExpressionError::InvalidWeekdaySpec),
         };
 
@@ -554,6 +562,16 @@ mod tests {
         let result = vec![
             (Weekday::Monday, Some(WeekdayModifier::First)),
             (Weekday::Monday, Some(WeekdayModifier::Third)),
+        ];
+        assert_eq!(parse_days(expression).unwrap(), result);
+    }
+
+    #[test]
+    fn test_parse_days_with_modifiers_3() {
+        let expression = "the last Monday and the 2nd Monday";
+        let result = vec![
+            (Weekday::Monday, Some(WeekdayModifier::Last)),
+            (Weekday::Monday, Some(WeekdayModifier::Second)),
         ];
         assert_eq!(parse_days(expression).unwrap(), result);
     }
@@ -846,6 +864,58 @@ mod tests {
                 .iter()
                 .skip_outdated(false)
                 .take(11)
+                .collect::<Vec<OffsetDateTime>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_schedule_iteration_5() {
+        let schedule = Schedule {
+            base: PrimitiveDateTime::new(date!(2021 - 06 - 18), time!(13:00:00)).assume_utc(),
+            specs: vec![
+                DateSpec {
+                    hours: vec![time!(06:00:00), time!(18:00:00)],
+                    days: Some(vec![
+                        (Weekday::Monday, Some(WeekdayModifier::Last)),
+                        (Weekday::Thursday, None),
+                    ]),
+                    weeks: None,
+                },
+                DateSpec {
+                    hours: vec![time!(18:00:00)],
+                    days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+                    weeks: None,
+                },
+            ],
+        };
+
+        let result = vec![
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 26), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 08), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 08), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 15), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 15), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 24), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 26), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 26), time!(18:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 29), time!(06:00:00)).assume_utc(),
+            PrimitiveDateTime::new(date!(2021 - 07 - 29), time!(18:00:00)).assume_utc(),
+        ];
+
+        assert_eq!(
+            schedule
+                .iter()
+                .skip_outdated(false)
+                .take(18)
                 .collect::<Vec<OffsetDateTime>>(),
             result
         );

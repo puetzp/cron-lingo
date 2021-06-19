@@ -12,6 +12,7 @@ pub(crate) enum WeekdayModifier {
     Second,
     Third,
     Fourth,
+    Last,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
