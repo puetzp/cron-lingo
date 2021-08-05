@@ -55,7 +55,7 @@ impl FromStr for Schedule {
         }
 
         let tt = Schedule {
-            base: OffsetDateTime::try_now_local().unwrap(),
+            base: OffsetDateTime::now_local().unwrap(),
             specs,
         };
         Ok(tt)
@@ -86,7 +86,7 @@ impl Iterator for ScheduleIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.skip_outdated {
-            let now = OffsetDateTime::try_now_local().unwrap();
+            let now = OffsetDateTime::now_local().unwrap();
 
             if now > self.current {
                 self.current = now;
@@ -130,7 +130,7 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
                 PrimitiveDateTime::new(today + Duration::days(i), time).assume_offset(offset);
 
             if date <= base {
-                date += Duration::week();
+                date += Duration::weeks(1);
             }
 
             candidates.push(date);
@@ -152,7 +152,7 @@ fn compute_dates(base: OffsetDateTime, spec: DateSpec) -> Vec<OffsetDateTime> {
             let day_modifier = days.iter().find(|x| x.0 == candidate.weekday()).unwrap().1;
 
             while !check_date_validity(candidate, day_modifier, weeks) {
-                *candidate += Duration::week();
+                *candidate += Duration::weeks(1);
             }
         }
     }
@@ -177,7 +177,7 @@ fn check_date_validity(
                 WeekdayModifier::Second => day > 7 && day <= 14,
                 WeekdayModifier::Third => day > 14 && day <= 21,
                 WeekdayModifier::Fourth => day > 21 && day <= 28,
-                WeekdayModifier::Last => date.month() < (*date + Duration::week()).month(),
+                WeekdayModifier::Last => date.month() != (*date + Duration::weeks(1)).month(),
             }
         }
         None => true,
@@ -185,7 +185,7 @@ fn check_date_validity(
 
     let is_correct_week = match week_mod {
         Some(modifier) => {
-            let week = date.week();
+            let week = date.date().iso_week();
 
             match modifier {
                 WeekVariant::Even => week % 2 == 0,
@@ -288,7 +288,7 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
         let mut full_hours = vec![];
 
         for i in 0..24 {
-            full_hours.push(Time::try_from_hms(i, 0, 0).unwrap());
+            full_hours.push(Time::from_hms(i, 0, 0).unwrap());
         }
         return Ok(full_hours);
     }
@@ -297,10 +297,21 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
 
     let mut times = Vec::new();
 
+    let format_no_minute =
+        time::macros::format_description!("[hour padding:none repr:12] [period case:upper]");
+
+    let format_with_minute = time::macros::format_description!(
+        "[hour padding:none repr:12]:[minute] [period case:upper]"
+    );
+
     for item in expression.split(',').map(|x| x.trim()) {
-        let time = match Time::parse(item, "%-I %P") {
+        println!("{}", item);
+        let time = match Time::parse(item, &format_no_minute) {
             Ok(t) => t,
-            Err(_) => Time::parse(item, "%-I:%-M %P").map_err(InvalidExpressionError::TimeParse)?,
+            Err(e) => {
+                println!("{}", e);
+                Time::parse(item, &format_with_minute).map_err(InvalidExpressionError::TimeParse)?
+            }
         };
 
         if times.contains(&time) {
@@ -411,7 +422,7 @@ fn parse_days(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::{date, time};
+    use time::macros::{date, time};
 
     #[test]
     fn test_empty_expression() {
@@ -501,10 +512,7 @@ mod tests {
     #[test]
     fn test_parse_times_for_parse_error() {
         let expression = "1 AM and 5:30";
-        assert_eq!(
-            parse_times(expression).unwrap_err(),
-            InvalidExpressionError::TimeParse(time::ParseError::UnexpectedEndOfString)
-        );
+        assert!(parse_times(expression).is_err());
     }
 
     #[test]
@@ -589,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_parse_block_2() {
-        let expression = "at 5 AM  and 6:30 PM (first Monday and Thursdays)";
+        let expression = "at 5 AM and 6:30 PM (first Monday and Thursdays)";
         let result = DateSpec {
             hours: vec![time!(05:00:00), time!(18:30:00)],
             days: Some(vec![

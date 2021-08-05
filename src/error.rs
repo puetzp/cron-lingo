@@ -11,7 +11,7 @@ pub enum InvalidExpressionError {
     IllogicalWeekdayCombination,
     InvalidWeekSpec,
     InvalidWeekdaySpec,
-    TimeParse(time::ParseError),
+    TimeParse(time::error::Parse),
 }
 
 impl fmt::Display for InvalidExpressionError {
@@ -114,7 +114,7 @@ impl Error for InvalidWeekdaySpecError {}
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeParseError {
-    pub source: time::ParseError,
+    pub source: time::error::Parse,
 }
 
 impl fmt::Display for TimeParseError {
