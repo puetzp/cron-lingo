@@ -421,7 +421,7 @@ fn parse_days(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::macros::{date, time};
+    use time::macros::{datetime, time};
 
     #[test]
     fn test_empty_expression() {
@@ -638,49 +638,49 @@ mod tests {
 
     #[test]
     fn test_compute_dates_1() {
-        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let base = datetime!(2021-06-04 13:38:00 UTC);
         let spec = DateSpec {
             hours: vec![time!(12:00:00), time!(18:00:00)],
             days: None,
             weeks: None,
         };
-        let mut result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 05), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 06), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 08), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 05), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 06), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 08), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        let result = vec![
+            datetime!(2021-06-11 12:00:00 UTC),
+            datetime!(2021-06-05 12:00:00 UTC),
+            datetime!(2021-06-06 12:00:00 UTC),
+            datetime!(2021-06-07 12:00:00 UTC),
+            datetime!(2021-06-08 12:00:00 UTC),
+            datetime!(2021-06-09 12:00:00 UTC),
+            datetime!(2021-06-10 12:00:00 UTC),
+            datetime!(2021-06-04 18:00:00 UTC),
+            datetime!(2021-06-05 18:00:00 UTC),
+            datetime!(2021-06-06 18:00:00 UTC),
+            datetime!(2021-06-07 18:00:00 UTC),
+            datetime!(2021-06-08 18:00:00 UTC),
+            datetime!(2021-06-09 18:00:00 UTC),
+            datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec).sort(), result.sort());
+        assert_eq!(compute_dates(base, spec), result);
     }
 
     #[test]
     fn test_compute_dates_2() {
-        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let base = datetime!(2021-06-04 13:38:00 UTC);
         let spec = DateSpec {
             hours: vec![time!(18:00:00)],
             days: Some(vec![(Weekday::Monday, None), (Weekday::Thursday, None)]),
             weeks: None,
         };
-        let mut result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 07), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        let result = vec![
+            datetime!(2021-06-07 18:00:00 UTC),
+            datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec).sort(), result.sort());
+        assert_eq!(compute_dates(base, spec), result);
     }
 
     #[test]
     fn test_compute_dates_3() {
-        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let base = datetime!(2021-06-04 13:38:00 UTC);
         let spec = DateSpec {
             hours: vec![time!(18:00:00)],
             days: Some(vec![
@@ -689,16 +689,16 @@ mod tests {
             ]),
             weeks: None,
         };
-        let mut result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        let result = vec![
+            datetime!(2021-06-14 18:00:00 UTC),
+            datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec).sort(), result.sort());
+        assert_eq!(compute_dates(base, spec), result);
     }
 
     #[test]
     fn test_compute_dates_4() {
-        let base = PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(13:38:00)).assume_utc();
+        let base = datetime!(2021-06-04 13:38:00 UTC);
         let spec = DateSpec {
             hours: vec![time!(12:00:00), time!(18:00:00)],
             days: Some(vec![
@@ -707,18 +707,18 @@ mod tests {
             ]),
             weeks: None,
         };
-        let mut result = vec![
-            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 04), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(18:00:00)).assume_utc(),
+        let result = vec![
+            datetime!(2021-07-02 12:00:00 UTC),
+            datetime!(2021-06-10 12:00:00 UTC),
+            datetime!(2021-06-04 18:00:00 UTC),
+            datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec).sort(), result.sort());
+        assert_eq!(compute_dates(base, spec), result);
     }
 
     #[test]
     fn test_compute_dates_5() {
-        let base = PrimitiveDateTime::new(date!(2021 - 06 - 12), time!(13:38:00)).assume_utc();
+        let base = datetime!(2021-06-12 13:38:00 UTC);
         let spec = DateSpec {
             hours: vec![time!(06:00:00), time!(12:00:00), time!(18:00:00)],
             days: Some(vec![
@@ -728,24 +728,25 @@ mod tests {
             ]),
             weeks: None,
         };
-        let mut result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(12:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 02), time!(18:00:00)).assume_utc(),
+        let result = vec![
+            datetime!(2021-06-21 06:00:00 UTC),
+            datetime!(2021-06-17 06:00:00 UTC),
+            datetime!(2021-07-02 06:00:00 UTC),
+            datetime!(2021-06-21 12:00:00 UTC),
+            datetime!(2021-06-17 12:00:00 UTC),
+            datetime!(2021-07-02 12:00:00 UTC),
+            datetime!(2021-06-21 18:00:00 UTC),
+            datetime!(2021-06-17 18:00:00 UTC),
+            datetime!(2021-07-02 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec).sort(), result.sort());
+
+        assert_eq!(compute_dates(base, spec), result);
     }
 
     #[test]
     fn test_schedule_iteration_1() {
         let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            base: datetime!(2021-06-09 13:00:00 UTC),
             specs: vec![DateSpec {
                 hours: vec![time!(01:00:00)],
                 days: None,
@@ -754,9 +755,9 @@ mod tests {
         };
 
         let result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(01:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 11), time!(01:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 12), time!(01:00:00)).assume_utc(),
+            datetime!(2021-06-10 01:00:00 UTC),
+            datetime!(2021-06-11 01:00:00 UTC),
+            datetime!(2021-06-12 01:00:00 UTC),
         ];
 
         assert_eq!(
@@ -772,7 +773,7 @@ mod tests {
     #[test]
     fn test_schedule_iteration_2() {
         let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            base: datetime!(2021-06-09 13:00:00 UTC),
             specs: vec![DateSpec {
                 hours: vec![time!(13:00:00)],
                 days: Some(vec![(Weekday::Monday, None)]),
@@ -781,9 +782,9 @@ mod tests {
         };
 
         let result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 14), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(13:00:00)).assume_utc(),
+            datetime!(2021-06-14 13:00:00 UTC),
+            datetime!(2021-06-21 13:00:00 UTC),
+            datetime!(2021-06-28 13:00:00 UTC),
         ];
 
         assert_eq!(
@@ -799,7 +800,7 @@ mod tests {
     #[test]
     fn test_schedule_iteration_3() {
         let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            base: datetime!(2021-06-09 13:00:00 UTC),
             specs: vec![DateSpec {
                 hours: vec![time!(06:00:00), time!(13:00:00)],
                 days: Some(vec![
@@ -811,14 +812,14 @@ mod tests {
         };
 
         let result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(13:00:00)).assume_utc(),
+            datetime!(2021-06-10 06:00:00 UTC),
+            datetime!(2021-06-10 13:00:00 UTC),
+            datetime!(2021-06-17 06:00:00 UTC),
+            datetime!(2021-06-17 13:00:00 UTC),
+            datetime!(2021-06-21 06:00:00 UTC),
+            datetime!(2021-06-21 13:00:00 UTC),
+            datetime!(2021-06-24 06:00:00 UTC),
+            datetime!(2021-06-24 13:00:00 UTC),
         ];
 
         assert_eq!(
@@ -834,7 +835,7 @@ mod tests {
     #[test]
     fn test_schedule_iteration_4() {
         let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 09), time!(13:00:00)).assume_utc(),
+            base: datetime!(2021-06-09 13:00:00 UTC),
             specs: vec![
                 DateSpec {
                     hours: vec![time!(06:00:00), time!(13:00:00)],
@@ -853,17 +854,17 @@ mod tests {
         };
 
         let result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 10), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 17), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 21), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(13:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 26), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(13:00:00)).assume_utc(),
+            datetime!(2021-06-10 06:00:00 UTC),
+            datetime!(2021-06-10 13:00:00 UTC),
+            datetime!(2021-06-17 06:00:00 UTC),
+            datetime!(2021-06-17 13:00:00 UTC),
+            datetime!(2021-06-21 06:00:00 UTC),
+            datetime!(2021-06-21 13:00:00 UTC),
+            datetime!(2021-06-24 06:00:00 UTC),
+            datetime!(2021-06-24 13:00:00 UTC),
+            datetime!(2021-06-26 18:00:00 UTC),
+            datetime!(2021-07-01 06:00:00 UTC),
+            datetime!(2021-07-01 13:00:00 UTC),
         ];
 
         assert_eq!(
@@ -879,7 +880,7 @@ mod tests {
     #[test]
     fn test_schedule_iteration_5() {
         let schedule = Schedule {
-            base: PrimitiveDateTime::new(date!(2021 - 06 - 18), time!(13:00:00)).assume_utc(),
+            base: datetime!(2021-06-18 13:00:00 UTC),
             specs: vec![
                 DateSpec {
                     hours: vec![time!(06:00:00), time!(18:00:00)],
@@ -898,24 +899,24 @@ mod tests {
         };
 
         let result = vec![
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 24), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 26), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 06 - 28), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 01), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 08), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 08), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 15), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 15), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 22), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 24), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 26), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 26), time!(18:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 29), time!(06:00:00)).assume_utc(),
-            PrimitiveDateTime::new(date!(2021 - 07 - 29), time!(18:00:00)).assume_utc(),
+            datetime!(2021-06-24 06:00:00 UTC),
+            datetime!(2021-06-24 18:00:00 UTC),
+            datetime!(2021-06-26 18:00:00 UTC),
+            datetime!(2021-06-28 06:00:00 UTC),
+            datetime!(2021-06-28 18:00:00 UTC),
+            datetime!(2021-07-01 06:00:00 UTC),
+            datetime!(2021-07-01 18:00:00 UTC),
+            datetime!(2021-07-08 06:00:00 UTC),
+            datetime!(2021-07-08 18:00:00 UTC),
+            datetime!(2021-07-15 06:00:00 UTC),
+            datetime!(2021-07-15 18:00:00 UTC),
+            datetime!(2021-07-22 06:00:00 UTC),
+            datetime!(2021-07-22 18:00:00 UTC),
+            datetime!(2021-07-24 18:00:00 UTC),
+            datetime!(2021-07-26 06:00:00 UTC),
+            datetime!(2021-07-26 18:00:00 UTC),
+            datetime!(2021-07-29 06:00:00 UTC),
+            datetime!(2021-07-29 18:00:00 UTC),
         ];
 
         assert_eq!(
