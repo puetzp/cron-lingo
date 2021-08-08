@@ -55,7 +55,8 @@ impl FromStr for Schedule {
         }
 
         let tt = Schedule {
-            base: OffsetDateTime::now_local().unwrap(),
+            base: OffsetDateTime::now_local()
+                .map_err(InvalidExpressionError::IndeterminateOffset)?,
             specs,
         };
         Ok(tt)
@@ -86,7 +87,8 @@ impl Iterator for ScheduleIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.skip_outdated {
-            let now = OffsetDateTime::now_local().unwrap();
+            let now =
+                OffsetDateTime::now_local().map_err(InvalidExpressionError::IndeterminateOffset)?;
 
             if now > self.current {
                 self.current = now;

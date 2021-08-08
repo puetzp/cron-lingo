@@ -12,6 +12,7 @@ pub enum InvalidExpressionError {
     InvalidWeekSpec,
     InvalidWeekdaySpec,
     TimeParse(time::error::Parse),
+    IndeterminateOffset(time::error::IndeterminateOffset),
 }
 
 impl fmt::Display for InvalidExpressionError {
@@ -24,6 +25,7 @@ impl fmt::Display for InvalidExpressionError {
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
             Self::InvalidWeekdaySpec => InvalidWeekdaySpecError.fmt(f),
             Self::TimeParse(e) => e.fmt(f),
+            Self::IndeterminateOffset(e) => e.fmt(f),
         }
     }
 }
@@ -111,16 +113,3 @@ impl fmt::Display for InvalidWeekdaySpecError {
 }
 
 impl Error for InvalidWeekdaySpecError {}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct TimeParseError {
-    pub source: time::error::Parse,
-}
-
-impl fmt::Display for TimeParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "failed to parse a time specification")
-    }
-}
-
-impl Error for TimeParseError {}
