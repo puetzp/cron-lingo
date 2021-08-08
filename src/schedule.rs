@@ -2,7 +2,35 @@ use crate::error::*;
 use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
+use time::macros::time;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime, Time, Weekday};
+
+const FULL_HOURS: [Time; 24] = [
+    time!(00:00:00),
+    time!(01:00:00),
+    time!(02:00:00),
+    time!(03:00:00),
+    time!(04:00:00),
+    time!(05:00:00),
+    time!(06:00:00),
+    time!(07:00:00),
+    time!(08:00:00),
+    time!(09:00:00),
+    time!(10:00:00),
+    time!(11:00:00),
+    time!(12:00:00),
+    time!(13:00:00),
+    time!(14:00:00),
+    time!(15:00:00),
+    time!(16:00:00),
+    time!(17:00:00),
+    time!(18:00:00),
+    time!(19:00:00),
+    time!(20:00:00),
+    time!(21:00:00),
+    time!(22:00:00),
+    time!(23:00:00),
+];
 
 /// A schedule that is built from an expression and can be iterated
 /// in order to compute the next date(s) that match the specification. By
@@ -87,8 +115,7 @@ impl Iterator for ScheduleIter {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.skip_outdated {
-            let now =
-                OffsetDateTime::now_local().map_err(InvalidExpressionError::IndeterminateOffset)?;
+            let now = OffsetDateTime::now_local().unwrap();
 
             if now > self.current {
                 self.current = now;
@@ -287,12 +314,7 @@ fn split_block(block: &str) -> Result<(&str, Option<&str>, Option<&str>), Invali
 // Parse the hour spec of an expression and return a sorted list.
 fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
     if expression == "every full hour" {
-        let mut full_hours = vec![];
-
-        for i in 0..24 {
-            full_hours.push(Time::from_hms(i, 0, 0).unwrap());
-        }
-        return Ok(full_hours);
+        return Ok(FULL_HOURS.into());
     }
 
     let expression = expression.replace("and", ",");
