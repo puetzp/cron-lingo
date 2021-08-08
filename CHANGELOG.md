@@ -4,9 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2] - 2021-06-19
+## [0.3.2] - 2021-08-08
 ### Added
 - Introduced new WeekdayModifier variant "Last" to select the last occurrence of some weekday, e.g. "at 6 PM (last Monday)"
+### Changed
+- Moved from time v0.2.22 to v0.3.1. Compile flag is needed in order to avoid runtime errors when the local offset is retrieved internally: `RUSTFLAGS="--cfg unsound_local_offset" cargo build`
 
 ## [0.3.1] - 2021-06-10
 ### Added
