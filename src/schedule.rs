@@ -305,7 +305,6 @@ fn parse_times(expression: &str) -> Result<Vec<Time>, InvalidExpressionError> {
     );
 
     for item in expression.split(',').map(|x| x.trim()) {
-        println!("{}", item);
         let time = match Time::parse(item, &format_no_minute) {
             Ok(t) => t,
             Err(e) => {
