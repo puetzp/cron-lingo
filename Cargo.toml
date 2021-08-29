@@ -11,4 +11,4 @@ description = "Alternative cron-like expression parser for schedulling"
 keywords = ["time", "cron", "schedule"]
 
 [dependencies]
-time = { version = "0.3.1", features = [ "local-offset", "parsing", "macros" ] }
+time = { version = "0.3", features = [ "local-offset", "parsing", "macros" ] }

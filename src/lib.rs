@@ -86,6 +86,7 @@
 //! * is _optional_
 //! * must be one of _in even weeks_ / _in odd weeks_
 pub mod error;
+mod parse;
 pub mod schedule;
 mod types;
 
