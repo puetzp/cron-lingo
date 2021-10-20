@@ -81,6 +81,13 @@ fn eat_keyword(keyword: &str, chars: &mut Vec<char>) -> Result<(), InvalidExpres
     Ok(())
 }
 
+fn matches_keyword(keyword: &str, chars: &[char]) -> bool {
+    match chars.get(0..keyword.len()) {
+        Some(c) => c.iter().collect::<String>().as_str() == keyword,
+        None => false,
+    }
+}
+
 fn eat_whitespace(chars: &mut Vec<char>) -> Result<(), InvalidExpressionError> {
     match chars.get(0) {
         Some(ch) => {
@@ -110,11 +117,15 @@ fn match_times(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionErr
                     tokens.push(match_time(chars)?);
                     continue;
                 } else if ch.is_whitespace() {
-                    eat_whitespace(chars)?;
-                    eat_keyword("and", chars)?;
-                    eat_whitespace(chars)?;
-                    tokens.push(match_time(chars)?);
-                    continue;
+                    if matches_keyword(" and", &chars) {
+                        eat_whitespace(chars)?;
+                        eat_keyword("and", chars)?;
+                        eat_whitespace(chars)?;
+                        tokens.push(match_time(chars)?);
+                        continue;
+                    } else {
+                        break;
+                    }
                 } else {
                     return Err(InvalidExpressionError::Syntax);
                 }
