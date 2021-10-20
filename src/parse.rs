@@ -100,6 +100,29 @@ fn match_times(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionErr
 
     tokens.push(match_time(chars)?);
 
+    // Check for more occurrences of time tokens.
+    loop {
+        match chars.get(0) {
+            Some(ch) => {
+                if *ch == ',' {
+                    chars.remove(0);
+                    eat_whitespace(chars)?;
+                    tokens.push(match_time(chars)?);
+                    continue;
+                } else if ch.is_whitespace() {
+                    eat_whitespace(chars)?;
+                    eat_keyword("and", chars)?;
+                    eat_whitespace(chars)?;
+                    tokens.push(match_time(chars)?);
+                    continue;
+                } else {
+                    return Err(InvalidExpressionError::Syntax);
+                }
+            }
+            None => break,
+        };
+    }
+
     Ok(tokens)
 }
 
@@ -177,7 +200,11 @@ mod tests {
 
     #[test]
     fn test_parse() {
-        let tokens = vec![vec![Token::Time(time!(07:30:00))]];
-        assert_eq!(parse("at 07:30 AM"), Ok(tokens));
+        let tokens = vec![vec![
+            Token::Time(time!(07:30:00)),
+            Token::Time(time!(17:00:00)),
+            Token::Time(time!(04:00:00)),
+        ]];
+        assert_eq!(parse("at 07:30 AM, 5 PM and 4 AM"), Ok(tokens));
     }
 }
