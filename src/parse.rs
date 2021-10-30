@@ -1,29 +1,16 @@
 use crate::error::*;
+use crate::types::{WeekVariant, WeekdayModifier};
 use std::fmt;
+use time::Weekday;
 
 #[derive(Eq, PartialEq, Debug)]
 pub(crate) enum Token {
-    // Literal "weeks".
-    Weeks,
-    // Literal "and" or ",".
-    Delimiter,
-    // Whitespace is actually a token to be matched as we are being picky and do not allow
-    // arbitrary amounts of whitespace in an expression (also, it helps with control flow).
-    Whitespace,
     // A time object in 12-hour format.
     Time(time::Time),
-    // Opening brace "(".
-    OBrace,
-    // Closing brace ")".
-    CBrace,
     // A specific weekday like "Monday".
-    SWeekday,
-    // A general weekday as in "Mondays"
-    GWeekday,
-    // A modifier hinting to a specific weekday in a month period like "first" or "1st".
-    WeekdayMod,
+    Day((Weekday, Option<WeekdayModifier>)),
     // A modifier narrowing down the ordinal week number, one of "even" or "odd".
-    WeekMod,
+    Week(WeekVariant),
 }
 
 const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
@@ -60,6 +47,10 @@ fn match_block(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionErr
     eat_whitespace(chars)?;
     tokens.extend(match_times(chars)?);
 
+    if !chars.is_empty() {
+        tokens.extend(match_weekdays(chars)?);
+    }
+
     Ok(tokens)
 }
 
@@ -79,6 +70,84 @@ fn eat_keyword(keyword: &str, chars: &mut Vec<char>) -> Result<(), InvalidExpres
     }
 
     Ok(())
+}
+
+fn eat_modifier(chars: &mut Vec<char>) -> Result<WeekdayModifier, InvalidExpressionError> {
+    if eat_keyword("1st", chars).is_ok() {
+        return Ok(WeekdayModifier::First);
+    }
+
+    if eat_keyword("first", chars).is_ok() {
+        return Ok(WeekdayModifier::First);
+    }
+
+    if eat_keyword("2nd", chars).is_ok() {
+        return Ok(WeekdayModifier::Second);
+    }
+
+    if eat_keyword("second", chars).is_ok() {
+        return Ok(WeekdayModifier::Second);
+    }
+
+    if eat_keyword("3rd", chars).is_ok() {
+        return Ok(WeekdayModifier::Third);
+    }
+
+    if eat_keyword("third", chars).is_ok() {
+        return Ok(WeekdayModifier::Third);
+    }
+
+    if eat_keyword("4th", chars).is_ok() {
+        return Ok(WeekdayModifier::Fourth);
+    }
+
+    if eat_keyword("fourth", chars).is_ok() {
+        return Ok(WeekdayModifier::Fourth);
+    }
+
+    if eat_keyword("last", chars).is_ok() {
+        return Ok(WeekdayModifier::Last);
+    }
+
+    Err(InvalidExpressionError::Syntax)
+}
+
+fn eat_weekday(chars: &mut Vec<char>, specific: bool) -> Result<Weekday, InvalidExpressionError> {
+    let mut day;
+
+    if eat_keyword("Monday", chars).is_ok() {
+        day = Weekday::Monday;
+    } else if eat_keyword("Tuesday", chars).is_ok() {
+        day = Weekday::Tuesday;
+    } else if eat_keyword("Wednesday", chars).is_ok() {
+        day = Weekday::Wednesday;
+    } else if eat_keyword("Thursday", chars).is_ok() {
+        day = Weekday::Thursday;
+    } else if eat_keyword("Friday", chars).is_ok() {
+        day = Weekday::Friday;
+    } else if eat_keyword("Saturday", chars).is_ok() {
+        day = Weekday::Saturday;
+    } else if eat_keyword("Sunday", chars).is_ok() {
+        day = Weekday::Sunday;
+    } else {
+        return Err(InvalidExpressionError::Syntax);
+    }
+
+    if !specific {
+        match chars.get(0) {
+            Some(c) => {
+                if *c == 's' {
+                    chars.remove(0);
+                    return Ok(day);
+                } else {
+                    return Err(InvalidExpressionError::Syntax);
+                }
+            }
+            None => return Err(InvalidExpressionError::Syntax),
+        }
+    } else {
+        return Ok(day);
+    }
 }
 
 fn matches_keyword(keyword: &str, chars: &[char]) -> bool {
@@ -204,6 +273,97 @@ fn match_time(chars: &mut Vec<char>) -> Result<Token, InvalidExpressionError> {
     }
 }
 
+fn match_weekdays(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionError> {
+    let mut tokens = Vec::new();
+
+    eat_whitespace(chars)?;
+
+    let has_braces = match chars.get(0) {
+        Some(c) => {
+            if *c == '(' {
+                chars.remove(0);
+                true
+            } else {
+                eat_keyword("on", chars)?;
+                eat_whitespace(chars)?;
+                false
+            }
+        }
+        None => return Err(InvalidExpressionError::Syntax),
+    };
+
+    tokens.push(match_weekday(chars)?);
+
+    loop {
+        match chars.get(0) {
+            Some(ch) => {
+                if *ch == ',' {
+                    chars.remove(0);
+                    eat_whitespace(chars)?;
+                    tokens.push(match_weekday(chars)?);
+                    continue;
+                } else if ch.is_whitespace() {
+                    if matches_keyword(" and", &chars) {
+                        eat_whitespace(chars)?;
+                        eat_keyword("and", chars)?;
+                        eat_whitespace(chars)?;
+                        tokens.push(match_weekday(chars)?);
+                        continue;
+                    } else {
+                        break;
+                    }
+                } else {
+                    return Err(InvalidExpressionError::Syntax);
+                }
+            }
+            None => break,
+        };
+    }
+
+    if has_braces {
+        match chars.get(0) {
+            Some(c) => {
+                if *c == ')' {
+                    chars.remove(0);
+                } else {
+                    return Err(InvalidExpressionError::Syntax);
+                }
+            }
+            None => return Err(InvalidExpressionError::Syntax),
+        }
+    }
+
+    Ok(tokens)
+}
+
+fn match_weekday(chars: &mut Vec<char>) -> Result<Token, InvalidExpressionError> {
+    let mut next = chars.get(0).ok_or(InvalidExpressionError::Syntax)?.clone();
+    let mut modifier = None;
+
+    if next.is_numeric() {
+        modifier = Some(eat_modifier(chars)?);
+        eat_whitespace(chars)?;
+    } else if next.is_alphabetic() && next.is_lowercase() {
+        if eat_keyword("the", chars).is_ok() {
+            eat_whitespace(chars)?;
+        }
+        modifier = Some(eat_modifier(chars)?);
+        eat_whitespace(chars)?;
+    }
+
+    next = chars.get(0).ok_or(InvalidExpressionError::Syntax)?.clone();
+    if next.is_uppercase() {
+        let day = if modifier.is_some() {
+            eat_weekday(chars, true)?
+        } else {
+            eat_weekday(chars, false)?
+        };
+        return Ok(Token::Day((day, modifier)));
+    }
+
+    Err(InvalidExpressionError::Syntax)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -215,7 +375,13 @@ mod tests {
             Token::Time(time!(07:30:00)),
             Token::Time(time!(17:00:00)),
             Token::Time(time!(04:00:00)),
+            Token::Day((Weekday::Monday, None)),
+            Token::Day((Weekday::Wednesday, None)),
+            Token::Day((Weekday::Friday, Some(WeekdayModifier::Last))),
         ]];
-        assert_eq!(parse("at 07:30 AM, 5 PM and 4 AM"), Ok(tokens));
+        assert_eq!(
+            parse("at 07:30 AM, 5 PM and 4 AM on Mondays and Wednesdays and the last Friday"),
+            Ok(tokens)
+        );
     }
 }
