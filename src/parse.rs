@@ -48,10 +48,54 @@ fn match_block(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionErr
     tokens.extend(match_times(chars)?);
 
     if !chars.is_empty() {
-        tokens.extend(match_weekdays(chars)?);
+        if is_block_end(&chars) {
+            eat_delimitation(chars)?;
+            return Ok(tokens);
+        } else {
+            tokens.extend(match_weekdays(chars)?);
+        }
+    }
+
+    if !chars.is_empty() {
+        if is_block_end(&chars) {
+            eat_delimitation(chars)?;
+            return Ok(tokens);
+        } else {
+            eat_whitespace(chars)?;
+            tokens.push(match_week(chars)?);
+        }
     }
 
     Ok(tokens)
+}
+
+fn is_block_end(chars: &[char]) -> bool {
+    expect_sequence(", at", &chars) || expect_sequence(" and at", &chars)
+}
+
+fn expect_sequence(sequence: &str, chars: &[char]) -> bool {
+    match chars.get(0..sequence.len()) {
+        Some(c) => c.iter().collect::<String>().as_str() == sequence,
+        None => false,
+    }
+}
+
+fn eat_delimitation(chars: &mut Vec<char>) -> Result<(), InvalidExpressionError> {
+    match chars.get(0) {
+        Some(ch) => {
+            if *ch == ',' {
+                chars.remove(0);
+                eat_whitespace(chars)?;
+            } else {
+                eat_whitespace(chars)?;
+                eat_keyword("and", chars)?;
+                eat_whitespace(chars)?;
+            }
+        }
+        None => return Err(InvalidExpressionError::Syntax),
+    }
+
+    Ok(())
 }
 
 fn eat_keyword(keyword: &str, chars: &mut Vec<char>) -> Result<(), InvalidExpressionError> {
@@ -150,13 +194,6 @@ fn eat_weekday(chars: &mut Vec<char>, specific: bool) -> Result<Weekday, Invalid
     }
 }
 
-fn matches_keyword(keyword: &str, chars: &[char]) -> bool {
-    match chars.get(0..keyword.len()) {
-        Some(c) => c.iter().collect::<String>().as_str() == keyword,
-        None => false,
-    }
-}
-
 fn eat_whitespace(chars: &mut Vec<char>) -> Result<(), InvalidExpressionError> {
     match chars.get(0) {
         Some(ch) => {
@@ -178,29 +215,33 @@ fn match_times(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpressionErr
 
     // Check for more occurrences of time tokens.
     loop {
-        match chars.get(0) {
-            Some(ch) => {
-                if *ch == ',' {
-                    chars.remove(0);
-                    eat_whitespace(chars)?;
-                    tokens.push(match_time(chars)?);
-                    continue;
-                } else if ch.is_whitespace() {
-                    if matches_keyword(" and", &chars) {
-                        eat_whitespace(chars)?;
-                        eat_keyword("and", chars)?;
+        if is_block_end(&chars) {
+            break;
+        } else {
+            match chars.get(0) {
+                Some(ch) => {
+                    if *ch == ',' {
+                        chars.remove(0);
                         eat_whitespace(chars)?;
                         tokens.push(match_time(chars)?);
                         continue;
+                    } else if ch.is_whitespace() {
+                        if expect_sequence(" and", &chars) {
+                            eat_whitespace(chars)?;
+                            eat_keyword("and", chars)?;
+                            eat_whitespace(chars)?;
+                            tokens.push(match_time(chars)?);
+                            continue;
+                        } else {
+                            break;
+                        }
                     } else {
-                        break;
+                        return Err(InvalidExpressionError::Syntax);
                     }
-                } else {
-                    return Err(InvalidExpressionError::Syntax);
                 }
+                None => break,
             }
-            None => break,
-        };
+        }
     }
 
     Ok(tokens)
@@ -303,7 +344,7 @@ fn match_weekdays(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpression
                     tokens.push(match_weekday(chars)?);
                     continue;
                 } else if ch.is_whitespace() {
-                    if matches_keyword(" and", &chars) {
+                    if expect_sequence(" and", &chars) {
                         eat_whitespace(chars)?;
                         eat_keyword("and", chars)?;
                         eat_whitespace(chars)?;
@@ -312,12 +353,14 @@ fn match_weekdays(chars: &mut Vec<char>) -> Result<Vec<Token>, InvalidExpression
                     } else {
                         break;
                     }
+                } else if *ch == ')' {
+                    break;
                 } else {
                     return Err(InvalidExpressionError::Syntax);
                 }
             }
             None => break,
-        };
+        }
     }
 
     if has_braces {
@@ -364,13 +407,23 @@ fn match_weekday(chars: &mut Vec<char>) -> Result<Token, InvalidExpressionError>
     Err(InvalidExpressionError::Syntax)
 }
 
+fn match_week(chars: &mut Vec<char>) -> Result<Token, InvalidExpressionError> {
+    if eat_keyword("in even weeks", chars).is_ok() {
+        return Ok(Token::Week(WeekVariant::Even));
+    } else if eat_keyword("in odd weeks", chars).is_ok() {
+        return Ok(Token::Week(WeekVariant::Odd));
+    } else {
+        return Err(InvalidExpressionError::Syntax);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use time::macros::time;
 
     #[test]
-    fn test_parse() {
+    fn test_parse_single_block() {
         let tokens = vec![vec![
             Token::Time(time!(07:30:00)),
             Token::Time(time!(17:00:00)),
@@ -378,9 +431,29 @@ mod tests {
             Token::Day((Weekday::Monday, None)),
             Token::Day((Weekday::Wednesday, None)),
             Token::Day((Weekday::Friday, Some(WeekdayModifier::Last))),
+            Token::Week(WeekVariant::Odd),
         ]];
         assert_eq!(
-            parse("at 07:30 AM, 5 PM and 4 AM on Mondays and Wednesdays and the last Friday"),
+            parse("at 07:30 AM, 5 PM and 4 AM on Mondays and Wednesdays and the last Friday in odd weeks"),
+            Ok(tokens)
+        );
+    }
+
+    #[test]
+    fn test_parse_multiple_blocks() {
+        let tokens = vec![
+            vec![
+                Token::Time(time!(07:00:00)),
+                Token::Day((Weekday::Monday, None)),
+            ],
+            vec![
+                Token::Time(time!(07:00:00)),
+                Token::Day((Weekday::Thursday, None)),
+                Token::Week(WeekVariant::Odd),
+            ],
+        ];
+        assert_eq!(
+            parse("at 07:00 AM (Mondays) and at 07:00 AM (Thursdays) in odd weeks"),
             Ok(tokens)
         );
     }
