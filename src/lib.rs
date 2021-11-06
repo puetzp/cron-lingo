@@ -44,7 +44,7 @@
 //! | at 8 AM                | on the first Monday          |                  |
 //! | at 8 PM                | on the 4th Friday            | in even weeks    |
 //! | at 8 PM                | on Wednesdays and Sundays    |                  |
-//! | at 5:45 AM             | (Monday and Thursdays)       |                  |
+//! | at 5:45 AM             | (Mondays and Thursdays)      |                  |
 //! | at 6 AM and 6 PM       | (first Sunday)               |                  |
 //! | at 1:15 PM             | (1st Monday and 2nd Friday)  |                  |
 //! | at 1 PM                | on the third Monday          |                  |
