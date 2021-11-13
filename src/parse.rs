@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::types::{DateSpec, WeekVariant, WeekdayModifier};
+use crate::types::{ParsedBlock, WeekVariant, WeekdayModifier};
 use std::fmt;
 use time::{Time, Weekday};
 
@@ -8,7 +8,7 @@ const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
 const TIME_FORMAT_WITH_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12]:[minute] [period case:upper]");
 
-pub(crate) fn parse(expression: &str) -> Result<Vec<DateSpec>, InvalidExpressionError> {
+pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, InvalidExpressionError> {
     let chars: Vec<char> = expression.chars().collect();
     let mut position: usize = 0;
 
@@ -25,12 +25,15 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<DateSpec>, InvalidExpression
     Ok(tokens)
 }
 
-fn match_block(position: &mut usize, chars: &[char]) -> Result<DateSpec, InvalidExpressionError> {
+fn match_block(
+    position: &mut usize,
+    chars: &[char],
+) -> Result<ParsedBlock, InvalidExpressionError> {
     eat_keyword("at", position, chars)?;
     eat_whitespace(position, chars)?;
     let times = match_times(position, chars)?;
 
-    let weekdays = if *position < chars.len() {
+    let days = if *position < chars.len() {
         if is_block_end(&position, &chars) {
             eat_delimitation(position, chars)?;
             None
@@ -41,7 +44,7 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<DateSpec, Invalid
         None
     };
 
-    let week = if *position < chars.len() {
+    let weeks = if *position < chars.len() {
         if is_block_end(&position, &chars) {
             eat_delimitation(position, chars)?;
             None
@@ -53,11 +56,7 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<DateSpec, Invalid
         None
     };
 
-    let spec = DateSpec {
-        hours: times,
-        days: weekdays,
-        weeks: week,
-    };
+    let spec = ParsedBlock { times, days, weeks };
 
     Ok(spec)
 }
@@ -461,8 +460,8 @@ mod tests {
 
     #[test]
     fn test_parse_single_block() {
-        let spec = vec![DateSpec {
-            hours: vec![time!(07:30:00), time!(17:00:00), time!(04:00:00)],
+        let spec = vec![ParsedBlock {
+            times: vec![time!(07:30:00), time!(17:00:00), time!(04:00:00)],
             days: Some(vec![
                 (Weekday::Monday, None),
                 (Weekday::Wednesday, None),
@@ -479,13 +478,13 @@ mod tests {
     #[test]
     fn test_parse_multiple_blocks() {
         let spec = vec![
-            DateSpec {
-                hours: vec![time!(07:00:00)],
+            ParsedBlock {
+                times: vec![time!(07:00:00)],
                 days: Some(vec![(Weekday::Monday, None)]),
                 weeks: None,
             },
-            DateSpec {
-                hours: vec![time!(07:00:00)],
+            ParsedBlock {
+                times: vec![time!(07:00:00)],
                 days: Some(vec![(Weekday::Thursday, None)]),
                 weeks: Some(WeekVariant::Odd),
             },
