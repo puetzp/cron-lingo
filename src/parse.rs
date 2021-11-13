@@ -1,24 +1,14 @@
 use crate::error::*;
-use crate::types::{WeekVariant, WeekdayModifier};
+use crate::types::{DateSpec, WeekVariant, WeekdayModifier};
 use std::fmt;
-use time::Weekday;
-
-#[derive(Eq, PartialEq, Debug)]
-pub(crate) enum Token {
-    // A time object in 12-hour format.
-    Time(time::Time),
-    // A specific weekday like "Monday".
-    Day((Weekday, Option<WeekdayModifier>)),
-    // A modifier narrowing down the ordinal week number, one of "even" or "odd".
-    Week(WeekVariant),
-}
+use time::{Time, Weekday};
 
 const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12] [period case:upper]");
 const TIME_FORMAT_WITH_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12]:[minute] [period case:upper]");
 
-pub(crate) fn parse(expression: &str) -> Result<Vec<Vec<Token>>, InvalidExpressionError> {
+pub(crate) fn parse(expression: &str) -> Result<Vec<DateSpec>, InvalidExpressionError> {
     let chars: Vec<char> = expression.chars().collect();
     let mut position: usize = 0;
 
@@ -26,51 +16,50 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<Vec<Token>>, InvalidExpressi
         return Err(InvalidExpressionError::EmptyExpression);
     }
 
-    let tokens = match_blocks(&mut position, &chars)?;
+    let mut tokens = vec![];
 
-    Ok(tokens)
-}
-
-fn match_blocks(
-    position: &mut usize,
-    chars: &[char],
-) -> Result<Vec<Vec<Token>>, InvalidExpressionError> {
-    let mut tokens: Vec<Vec<Token>> = Vec::new();
-
-    while *position < chars.len() {
-        tokens.push(match_block(position, chars)?);
+    while position < chars.len() {
+        tokens.push(match_block(&mut position, &chars)?);
     }
 
     Ok(tokens)
 }
 
-fn match_block(position: &mut usize, chars: &[char]) -> Result<Vec<Token>, InvalidExpressionError> {
-    let mut tokens = Vec::new();
-
+fn match_block(position: &mut usize, chars: &[char]) -> Result<DateSpec, InvalidExpressionError> {
     eat_keyword("at", position, chars)?;
     eat_whitespace(position, chars)?;
-    tokens.extend(match_times(position, chars)?);
+    let times = match_times(position, chars)?;
 
-    if *position < chars.len() {
+    let weekdays = if *position < chars.len() {
         if is_block_end(&position, &chars) {
             eat_delimitation(position, chars)?;
-            return Ok(tokens);
+            None
         } else {
-            tokens.extend(match_weekdays(position, chars)?);
+            Some(match_weekdays(position, chars)?)
         }
-    }
+    } else {
+        None
+    };
 
-    if *position < chars.len() {
+    let week = if *position < chars.len() {
         if is_block_end(&position, &chars) {
             eat_delimitation(position, chars)?;
-            return Ok(tokens);
+            None
         } else {
             eat_whitespace(position, chars)?;
-            tokens.push(match_week(position, chars)?);
+            Some(match_week(position, chars)?)
         }
-    }
+    } else {
+        None
+    };
 
-    Ok(tokens)
+    let spec = DateSpec {
+        hours: times,
+        days: weekdays,
+        weeks: week,
+    };
+
+    Ok(spec)
 }
 
 fn is_block_end(position: &usize, chars: &[char]) -> bool {
@@ -224,8 +213,8 @@ fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), InvalidExp
     }
 }
 
-fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Token>, InvalidExpressionError> {
-    let mut tokens = Vec::new();
+fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, InvalidExpressionError> {
+    let mut tokens = vec![];
 
     tokens.push(match_time(position, chars)?);
 
@@ -263,7 +252,7 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Token>, Inval
     Ok(tokens)
 }
 
-fn match_time(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpressionError> {
+fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, InvalidExpressionError> {
     // First character must be a number.
     let hour = chars
         .get(*position)
@@ -296,10 +285,10 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpr
             time.insert(0, ' ');
             time.insert(0, hour);
 
-            let parsed = time::Time::parse(&time, &TIME_FORMAT_NO_MINUTES)
+            let parsed = Time::parse(&time, &TIME_FORMAT_NO_MINUTES)
                 .map_err(InvalidExpressionError::TimeParse)?;
 
-            Ok(Token::Time(parsed))
+            Ok(parsed)
         } else if next == ':' {
             let mut complete = String::new();
             complete.push(hour);
@@ -316,10 +305,10 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpr
 
             *position = end_pos;
 
-            let parsed = time::Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
+            let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
                 .map_err(InvalidExpressionError::TimeParse)?;
 
-            Ok(Token::Time(parsed))
+            Ok(parsed)
         } else if next.is_numeric() {
             let mut complete = String::new();
             complete.push(hour);
@@ -336,10 +325,10 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpr
 
             *position = end_pos;
 
-            let parsed = time::Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
+            let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
                 .map_err(InvalidExpressionError::TimeParse)?;
 
-            Ok(Token::Time(parsed))
+            Ok(parsed)
         } else {
             Err(InvalidExpressionError::Syntax)
         }
@@ -351,8 +340,8 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpr
 fn match_weekdays(
     position: &mut usize,
     chars: &[char],
-) -> Result<Vec<Token>, InvalidExpressionError> {
-    let mut tokens = Vec::new();
+) -> Result<Vec<(Weekday, Option<WeekdayModifier>)>, InvalidExpressionError> {
+    let mut tokens = vec![];
 
     eat_whitespace(position, chars)?;
 
@@ -416,7 +405,10 @@ fn match_weekdays(
     Ok(tokens)
 }
 
-fn match_weekday(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpressionError> {
+fn match_weekday(
+    position: &mut usize,
+    chars: &[char],
+) -> Result<(Weekday, Option<WeekdayModifier>), InvalidExpressionError> {
     let mut next = chars
         .get(*position)
         .ok_or(InvalidExpressionError::Syntax)?
@@ -446,17 +438,17 @@ fn match_weekday(position: &mut usize, chars: &[char]) -> Result<Token, InvalidE
         } else {
             eat_weekday(position, chars, false)?
         };
-        return Ok(Token::Day((day, modifier)));
+        return Ok((day, modifier));
     }
 
     Err(InvalidExpressionError::Syntax)
 }
 
-fn match_week(position: &mut usize, chars: &[char]) -> Result<Token, InvalidExpressionError> {
+fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, InvalidExpressionError> {
     if eat_keyword("in even weeks", position, chars).is_ok() {
-        return Ok(Token::Week(WeekVariant::Even));
+        return Ok(WeekVariant::Even);
     } else if eat_keyword("in odd weeks", position, chars).is_ok() {
-        return Ok(Token::Week(WeekVariant::Odd));
+        return Ok(WeekVariant::Odd);
     } else {
         return Err(InvalidExpressionError::Syntax);
     }
@@ -469,37 +461,38 @@ mod tests {
 
     #[test]
     fn test_parse_single_block() {
-        let tokens = vec![vec![
-            Token::Time(time!(07:30:00)),
-            Token::Time(time!(17:00:00)),
-            Token::Time(time!(04:00:00)),
-            Token::Day((Weekday::Monday, None)),
-            Token::Day((Weekday::Wednesday, None)),
-            Token::Day((Weekday::Friday, Some(WeekdayModifier::Last))),
-            Token::Week(WeekVariant::Odd),
-        ]];
+        let spec = vec![DateSpec {
+            hours: vec![time!(07:30:00), time!(17:00:00), time!(04:00:00)],
+            days: Some(vec![
+                (Weekday::Monday, None),
+                (Weekday::Wednesday, None),
+                (Weekday::Friday, Some(WeekdayModifier::Last)),
+            ]),
+            weeks: Some(WeekVariant::Odd),
+        }];
         assert_eq!(
             parse("at 07:30 AM, 5 PM and 4 AM on Mondays and Wednesdays and the last Friday in odd weeks"),
-            Ok(tokens)
+            Ok(spec)
         );
     }
 
     #[test]
     fn test_parse_multiple_blocks() {
-        let tokens = vec![
-            vec![
-                Token::Time(time!(07:00:00)),
-                Token::Day((Weekday::Monday, None)),
-            ],
-            vec![
-                Token::Time(time!(07:00:00)),
-                Token::Day((Weekday::Thursday, None)),
-                Token::Week(WeekVariant::Odd),
-            ],
+        let spec = vec![
+            DateSpec {
+                hours: vec![time!(07:00:00)],
+                days: Some(vec![(Weekday::Monday, None)]),
+                weeks: None,
+            },
+            DateSpec {
+                hours: vec![time!(07:00:00)],
+                days: Some(vec![(Weekday::Thursday, None)]),
+                weeks: Some(WeekVariant::Odd),
+            },
         ];
         assert_eq!(
             parse("at 07:00 AM (Mondays) and at 07:00 AM (Thursdays) in odd weeks"),
-            Ok(tokens)
+            Ok(spec)
         );
     }
 }
