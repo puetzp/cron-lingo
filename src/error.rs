@@ -1,12 +1,13 @@
-use std::error::Error;
+use std::error::Error as StdError;
 use std::fmt;
 
 /// A global error type that encapsulates all other, more specific
 /// error types below.
 #[derive(Debug, Clone, PartialEq)]
-pub enum InvalidExpressionError {
+pub enum Error {
     EmptyExpression,
-    Syntax,
+    Syntax(SyntaxError),
+    UnexpectedEndOfInput,
     DuplicateInput,
     IllogicalWeekdayCombination,
     InvalidWeekSpec,
@@ -15,11 +16,12 @@ pub enum InvalidExpressionError {
     IndeterminateOffset(time::error::IndeterminateOffset),
 }
 
-impl fmt::Display for InvalidExpressionError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
-            Self::Syntax => SyntaxError.fmt(f),
+            Self::Syntax(e) => e.fmt(f),
+            Self::UnexpectedEndOfInput => UnexpectedEndOfInputError.fmt(f),
             Self::DuplicateInput => DuplicateInputError.fmt(f),
             Self::IllogicalWeekdayCombination => IllogicalWeekdayCombinationError.fmt(f),
             Self::InvalidWeekSpec => InvalidWeekSpecError.fmt(f),
@@ -30,7 +32,7 @@ impl fmt::Display for InvalidExpressionError {
     }
 }
 
-impl Error for InvalidExpressionError {}
+impl StdError for Error {}
 
 /// Quite self-explanatory. The expression string literal must not be empty.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -42,19 +44,43 @@ impl fmt::Display for EmptyExpressionError {
     }
 }
 
-impl Error for EmptyExpressionError {}
+impl StdError for EmptyExpressionError {}
 
-/// Generic syntax error.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct SyntaxError;
+/// Generic syntax error. Gives the exact position of the erroneous character
+/// in an expression and points out the expected input.
+#[derive(Debug, Clone, PartialEq)]
+pub struct SyntaxError {
+    pub position: usize,
+    pub expected: String,
+}
 
 impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression syntax is invalid")
+        write!(
+            f,
+            "unexpected sequence of characters starting at position '{}', expected {}",
+            self.position, self.expected
+        )
     }
 }
 
-impl Error for SyntaxError {}
+impl StdError for SyntaxError {}
+
+/// This error indicates that the parser expected more input, but reached
+/// the end of the expression.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct UnexpectedEndOfInputError;
+
+impl fmt::Display for UnexpectedEndOfInputError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "the parser reached the end of the input expression while expecting more characters"
+        )
+    }
+}
+
+impl StdError for UnexpectedEndOfInputError {}
 
 /// This error points to duplicates in the expression, e.g. multiple
 /// occurrences of the same weekday.
@@ -67,7 +93,7 @@ impl fmt::Display for DuplicateInputError {
     }
 }
 
-impl Error for DuplicateInputError {}
+impl StdError for DuplicateInputError {}
 
 /// This error points to illogical combinations of weekdays and its modifiers,
 /// e.g. "on Mondays and the first Monday".
@@ -83,7 +109,7 @@ impl fmt::Display for IllogicalWeekdayCombinationError {
     }
 }
 
-impl Error for IllogicalWeekdayCombinationError {}
+impl StdError for IllogicalWeekdayCombinationError {}
 
 /// An error indicating that the week spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.
@@ -96,7 +122,7 @@ impl fmt::Display for InvalidWeekSpecError {
     }
 }
 
-impl Error for InvalidWeekSpecError {}
+impl StdError for InvalidWeekSpecError {}
 
 /// An error indicating that the weekday spec of an expression contains
 /// invalid input or does not adhere to the prescribed syntax.
@@ -112,4 +138,4 @@ impl fmt::Display for InvalidWeekdaySpecError {
     }
 }
 
-impl Error for InvalidWeekdaySpecError {}
+impl StdError for InvalidWeekdaySpecError {}

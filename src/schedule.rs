@@ -3,7 +3,6 @@ use crate::parse::parse;
 use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
-use time::macros::time;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 /// A schedule that is built from an expression and can be iterated
@@ -31,7 +30,7 @@ impl Schedule {
 }
 
 impl FromStr for Schedule {
-    type Err = InvalidExpressionError;
+    type Err = Error;
 
     /// Attempt to create a new `Schedule` object from an expression.
     ///
@@ -44,8 +43,7 @@ impl FromStr for Schedule {
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Schedule {
-            base: OffsetDateTime::now_local()
-                .map_err(InvalidExpressionError::IndeterminateOffset)?,
+            base: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
             specs: parse(expression)?,
         };
         Ok(tt)
@@ -192,13 +190,13 @@ fn check_date_validity(
 mod tests {
     use super::*;
     use time::macros::{datetime, time};
-    use time::{Time, Weekday};
+    use time::Weekday;
 
     /*
     #[test]
     fn test_empty_expression() {
         let result = Schedule::from_str("").unwrap_err();
-        assert_eq!(result, InvalidExpressionError::EmptyExpression);
+        assert_eq!(result, Error::EmptyExpression);
     }
 
     #[test]
@@ -231,7 +229,7 @@ mod tests {
         let block = "at 4 PM and 6 PM on Mondays and on Tuesdays";
         assert_eq!(
             split_block(block).unwrap_err(),
-            InvalidExpressionError::Syntax
+            Error::Syntax
         );
     }
 
@@ -291,7 +289,7 @@ mod tests {
         let expression = "1 AM and 1 AM and 5 PM";
         assert_eq!(
             parse_times(expression).unwrap_err(),
-            InvalidExpressionError::DuplicateInput
+            Error::DuplicateInput
         );
     }
 
@@ -311,7 +309,7 @@ mod tests {
         let expression = "Mondays, Mondays and Thursdays";
         assert_eq!(
             parse_days(expression).unwrap_err(),
-            InvalidExpressionError::DuplicateInput
+            Error::DuplicateInput
         );
     }
 
@@ -320,7 +318,7 @@ mod tests {
         let expression = "the 1st Monday, Mondays and Thursdays";
         assert_eq!(
             parse_days(expression).unwrap_err(),
-            InvalidExpressionError::IllogicalWeekdayCombination
+            Error::IllogicalWeekdayCombination
         );
     }
 

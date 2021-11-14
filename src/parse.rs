@@ -1,6 +1,5 @@
 use crate::error::*;
 use crate::types::{ParsedBlock, WeekVariant, WeekdayModifier};
-use std::fmt;
 use time::{Time, Weekday};
 
 const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
@@ -8,12 +7,12 @@ const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
 const TIME_FORMAT_WITH_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12]:[minute] [period case:upper]");
 
-pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, InvalidExpressionError> {
+pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
     let chars: Vec<char> = expression.chars().collect();
     let mut position: usize = 0;
 
     if chars.is_empty() {
-        return Err(InvalidExpressionError::EmptyExpression);
+        return Err(Error::EmptyExpression);
     }
 
     let mut tokens = vec![];
@@ -25,10 +24,7 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, InvalidExpress
     Ok(tokens)
 }
 
-fn match_block(
-    position: &mut usize,
-    chars: &[char],
-) -> Result<ParsedBlock, InvalidExpressionError> {
+fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Error> {
     eat_keyword("at", position, chars)?;
     eat_whitespace(position, chars)?;
     let times = match_times(position, chars)?;
@@ -73,7 +69,7 @@ fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
     }
 }
 
-fn eat_delimitation(position: &mut usize, chars: &[char]) -> Result<(), InvalidExpressionError> {
+fn eat_delimitation(position: &mut usize, chars: &[char]) -> Result<(), Error> {
     match chars.get(*position) {
         Some(ch) => {
             if *ch == ',' {
@@ -85,38 +81,35 @@ fn eat_delimitation(position: &mut usize, chars: &[char]) -> Result<(), InvalidE
                 eat_whitespace(position, chars)?;
             }
         }
-        None => return Err(InvalidExpressionError::Syntax),
+        None => return Err(Error::UnexpectedEndOfInput),
     }
 
     Ok(())
 }
 
-fn eat_keyword(
-    keyword: &str,
-    position: &mut usize,
-    chars: &[char],
-) -> Result<(), InvalidExpressionError> {
+fn eat_keyword(keyword: &str, position: &mut usize, chars: &[char]) -> Result<(), Error> {
     let end_pos = *position + keyword.len();
 
     let word: String = chars
         .get(*position..end_pos)
-        .ok_or(InvalidExpressionError::Syntax)?
+        .ok_or(Error::UnexpectedEndOfInput)?
         .iter()
         .collect();
 
     if word.as_str() == keyword {
         *position = end_pos;
     } else {
-        return Err(InvalidExpressionError::Syntax);
+        let err = SyntaxError {
+            position: *position,
+            expected: format!("'{}'", keyword),
+        };
+        return Err(Error::Syntax(err));
     }
 
     Ok(())
 }
 
-fn eat_modifier(
-    position: &mut usize,
-    chars: &[char],
-) -> Result<WeekdayModifier, InvalidExpressionError> {
+fn eat_modifier(position: &mut usize, chars: &[char]) -> Result<WeekdayModifier, Error> {
     if eat_keyword("1st", position, chars).is_ok() {
         return Ok(WeekdayModifier::First);
     }
@@ -153,14 +146,17 @@ fn eat_modifier(
         return Ok(WeekdayModifier::Last);
     }
 
-    Err(InvalidExpressionError::Syntax)
+    let err = SyntaxError {
+        position: *position,
+        expected:
+            "one of '1st', 'first', '2nd', 'second', '3rd', 'third', '4th', 'fourth' or 'last'"
+                .to_string(),
+    };
+
+    Err(Error::Syntax(err))
 }
 
-fn eat_weekday(
-    position: &mut usize,
-    chars: &[char],
-    specific: bool,
-) -> Result<Weekday, InvalidExpressionError> {
+fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<Weekday, Error> {
     let day;
 
     if eat_keyword("Monday", position, chars).is_ok() {
@@ -178,7 +174,11 @@ fn eat_weekday(
     } else if eat_keyword("Sunday", position, chars).is_ok() {
         day = Weekday::Sunday;
     } else {
-        return Err(InvalidExpressionError::Syntax);
+        let err = SyntaxError {
+            position: *position,
+            expected: "one of 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' or 'Sunday'".to_string()
+        };
+        return Err(Error::Syntax(err));
     }
 
     if !specific {
@@ -188,31 +188,39 @@ fn eat_weekday(
                     *position += 1;
                     return Ok(day);
                 } else {
-                    return Err(InvalidExpressionError::Syntax);
+                    let err = SyntaxError {
+                        position: *position,
+                        expected: "one of 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays' or 'Sundays'".to_string()
+                    };
+                    return Err(Error::Syntax(err));
                 }
             }
-            None => return Err(InvalidExpressionError::Syntax),
+            None => return Err(Error::UnexpectedEndOfInput),
         }
     } else {
         return Ok(day);
     }
 }
 
-fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), InvalidExpressionError> {
+fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), Error> {
     match chars.get(*position) {
         Some(ch) => {
             if ch.is_whitespace() {
                 *position += 1;
                 Ok(())
             } else {
-                Err(InvalidExpressionError::Syntax)
+                let err = SyntaxError {
+                    position: *position,
+                    expected: "a whitespace".to_string(),
+                };
+                Err(Error::Syntax(err))
             }
         }
-        None => Err(InvalidExpressionError::Syntax),
+        None => Err(Error::UnexpectedEndOfInput),
     }
 }
 
-fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, InvalidExpressionError> {
+fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Error> {
     let mut tokens = vec![];
 
     tokens.push(match_time(position, chars)?);
@@ -240,7 +248,11 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Invali
                             break;
                         }
                     } else {
-                        return Err(InvalidExpressionError::Syntax);
+                        let err = SyntaxError {
+                            position: *position,
+                            expected: "either ',' or a whitespace".to_string(),
+                        };
+                        return Err(Error::Syntax(err));
                     }
                 }
                 None => break,
@@ -251,21 +263,103 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Invali
     Ok(tokens)
 }
 
-fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, InvalidExpressionError> {
+fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     // First character must be a number.
     let hour = chars
         .get(*position)
-        .ok_or(InvalidExpressionError::Syntax)?
+        .ok_or_else(|| {
+            let err = SyntaxError {
+                position: *position,
+                expected: "a number between 1 and 12 with optional zero-padding".to_string(),
+            };
+            Error::Syntax(err)
+        })?
         .clone();
 
-    if hour.is_numeric() {
-        *position += 1;
+    if !hour.is_numeric() {
+        let err = SyntaxError {
+            position: *position,
+            expected: "a number between 1 and 12 with optional zero-padding".to_string(),
+        };
+        return Err(Error::Syntax(err));
+    }
 
-        // Next character may be the next part of a 2-digit number, a colon,
-        // or a whitespace.
+    *position += 1;
+
+    // Next character may be the next part of a 2-digit number, a colon,
+    // or a whitespace.
+    let next = chars
+        .get(*position)
+        .ok_or_else(|| {
+            let err = SyntaxError {
+                position: *position,
+                expected: "one of a number between 0 and 2, a colon or a whitespace".to_string(),
+            };
+            Error::Syntax(err)
+        })?
+        .clone();
+
+    *position += 1;
+
+    if next.is_whitespace() {
+        let end_pos = *position + 2;
+
+        let mut time: String = chars
+            .get(*position..end_pos)
+            .ok_or_else(|| {
+                let err = SyntaxError {
+                    position: *position,
+                    expected: "either 'AM' or 'PM'".to_string(),
+                };
+                Error::Syntax(err)
+            })?
+            .iter()
+            .collect();
+
+        *position = end_pos;
+
+        time.insert(0, ' ');
+        time.insert(0, hour);
+
+        let parsed = Time::parse(&time, &TIME_FORMAT_NO_MINUTES).map_err(Error::TimeParse)?;
+
+        Ok(parsed)
+    } else if next == ':' {
+        let mut complete = String::new();
+        complete.push(hour);
+        complete.push(next);
+
+        let end_pos = *position + 5;
+
+        for c in chars.get(*position..end_pos).ok_or_else(|| {
+            let err = SyntaxError {
+                position: *position,
+                expected: "a number between 00 and 59 followed by either 'AM' or 'PM'".to_string(),
+            };
+            Error::Syntax(err)
+        })? {
+            complete.push(*c);
+        }
+
+        *position = end_pos;
+
+        let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
+
+        Ok(parsed)
+    } else if next.is_numeric() {
+        let mut complete = String::new();
+        complete.push(hour);
+        complete.push(next);
+
         let next = chars
             .get(*position)
-            .ok_or(InvalidExpressionError::Syntax)?
+            .ok_or_else(|| {
+                let err = SyntaxError {
+                    position: *position,
+                    expected: "either a ':' or a whitespace".to_string(),
+                };
+                Error::Syntax(err)
+            })?
             .clone();
 
         *position += 1;
@@ -273,73 +367,69 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, InvalidExpre
         if next.is_whitespace() {
             let end_pos = *position + 2;
 
-            let mut time: String = chars
+            let time: String = chars
                 .get(*position..end_pos)
-                .ok_or(InvalidExpressionError::Syntax)?
+                .ok_or_else(|| {
+                    let err = SyntaxError {
+                        position: *position,
+                        expected: "either 'AM' or 'PM'".to_string(),
+                    };
+                    Error::Syntax(err)
+                })?
                 .iter()
                 .collect();
 
             *position = end_pos;
 
-            time.insert(0, ' ');
-            time.insert(0, hour);
+            complete.push(' ');
+            complete.push_str(&time);
 
-            let parsed = Time::parse(&time, &TIME_FORMAT_NO_MINUTES)
-                .map_err(InvalidExpressionError::TimeParse)?;
+            let parsed =
+                Time::parse(&complete, &TIME_FORMAT_NO_MINUTES).map_err(Error::TimeParse)?;
 
             Ok(parsed)
         } else if next == ':' {
-            let mut complete = String::new();
-            complete.push(hour);
             complete.push(next);
 
             let end_pos = *position + 5;
 
-            for c in chars
-                .get(*position..end_pos)
-                .ok_or(InvalidExpressionError::Syntax)?
-            {
+            for c in chars.get(*position..end_pos).ok_or_else(|| {
+                let err = SyntaxError {
+                    position: *position,
+                    expected: "a number between 00 and 59 followed by either 'AM' or 'PM'"
+                        .to_string(),
+                };
+                Error::Syntax(err)
+            })? {
                 complete.push(*c);
             }
 
             *position = end_pos;
 
-            let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
-                .map_err(InvalidExpressionError::TimeParse)?;
-
-            Ok(parsed)
-        } else if next.is_numeric() {
-            let mut complete = String::new();
-            complete.push(hour);
-            complete.push(next);
-
-            let end_pos = *position + 6;
-
-            for c in chars
-                .get(*position..end_pos)
-                .ok_or(InvalidExpressionError::Syntax)?
-            {
-                complete.push(*c);
-            }
-
-            *position = end_pos;
-
-            let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES)
-                .map_err(InvalidExpressionError::TimeParse)?;
+            let parsed =
+                Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
 
             Ok(parsed)
         } else {
-            Err(InvalidExpressionError::Syntax)
+            let err = SyntaxError {
+                position: *position,
+                expected: "either ',' or a whitespace".to_string(),
+            };
+            Err(Error::Syntax(err))
         }
     } else {
-        Err(InvalidExpressionError::Syntax)
+        let err = SyntaxError {
+            position: *position,
+            expected: "one of a number between 0 and 2, ',' or a whitespace".to_string(),
+        };
+        Err(Error::Syntax(err))
     }
 }
 
 fn match_weekdays(
     position: &mut usize,
     chars: &[char],
-) -> Result<Vec<(Weekday, Option<WeekdayModifier>)>, InvalidExpressionError> {
+) -> Result<Vec<(Weekday, Option<WeekdayModifier>)>, Error> {
     let mut tokens = vec![];
 
     eat_whitespace(position, chars)?;
@@ -355,7 +445,13 @@ fn match_weekdays(
                 false
             }
         }
-        None => return Err(InvalidExpressionError::Syntax),
+        None => {
+            let err = SyntaxError {
+                position: *position,
+                expected: "either '(' or 'on'".to_string(),
+            };
+            return Err(Error::Syntax(err));
+        }
     };
 
     tokens.push(match_weekday(position, chars)?);
@@ -381,7 +477,16 @@ fn match_weekdays(
                 } else if *ch == ')' {
                     break;
                 } else {
-                    return Err(InvalidExpressionError::Syntax);
+                    let expected = if has_braces {
+                        "either ',', ')' or a whitespace".to_string()
+                    } else {
+                        "either ',' or a whitespace".to_string()
+                    };
+                    let err = SyntaxError {
+                        position: *position,
+                        expected,
+                    };
+                    return Err(Error::Syntax(err));
                 }
             }
             None => break,
@@ -394,10 +499,20 @@ fn match_weekdays(
                 if *c == ')' {
                     *position += 1;
                 } else {
-                    return Err(InvalidExpressionError::Syntax);
+                    let err = SyntaxError {
+                        position: *position,
+                        expected: "a ')'".to_string(),
+                    };
+                    return Err(Error::Syntax(err));
                 }
             }
-            None => return Err(InvalidExpressionError::Syntax),
+            None => {
+                let err = SyntaxError {
+                    position: *position,
+                    expected: "a ')'".to_string(),
+                };
+                return Err(Error::Syntax(err));
+            }
         }
     }
 
@@ -407,10 +522,10 @@ fn match_weekdays(
 fn match_weekday(
     position: &mut usize,
     chars: &[char],
-) -> Result<(Weekday, Option<WeekdayModifier>), InvalidExpressionError> {
-    let mut next = chars
+) -> Result<(Weekday, Option<WeekdayModifier>), Error> {
+    let next = chars
         .get(*position)
-        .ok_or(InvalidExpressionError::Syntax)?
+        .ok_or(Error::UnexpectedEndOfInput)?
         .clone();
 
     let mut modifier = None;
@@ -426,30 +541,26 @@ fn match_weekday(
         eat_whitespace(position, chars)?;
     }
 
-    next = chars
-        .get(*position)
-        .ok_or(InvalidExpressionError::Syntax)?
-        .clone();
+    let day = if modifier.is_some() {
+        eat_weekday(position, chars, true)?
+    } else {
+        eat_weekday(position, chars, false)?
+    };
 
-    if next.is_uppercase() {
-        let day = if modifier.is_some() {
-            eat_weekday(position, chars, true)?
-        } else {
-            eat_weekday(position, chars, false)?
-        };
-        return Ok((day, modifier));
-    }
-
-    Err(InvalidExpressionError::Syntax)
+    return Ok((day, modifier));
 }
 
-fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, InvalidExpressionError> {
+fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, Error> {
     if eat_keyword("in even weeks", position, chars).is_ok() {
         return Ok(WeekVariant::Even);
     } else if eat_keyword("in odd weeks", position, chars).is_ok() {
         return Ok(WeekVariant::Odd);
     } else {
-        return Err(InvalidExpressionError::Syntax);
+        let err = SyntaxError {
+            position: *position,
+            expected: "either 'in even weeks' or 'in odd weeks'".to_string(),
+        };
+        return Err(Error::Syntax(err));
     }
 }
 
