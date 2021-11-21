@@ -11,7 +11,7 @@
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
 //!
-//! let expr = "at 6 AM on Mondays and Thursdays and at 6 PM on Sundays in even weeks";
+//! let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
 //! let schedule = Schedule::from_str(expr).unwrap();
 //! assert!(schedule.iter().next().is_some());
 //! ```
@@ -22,14 +22,14 @@
 //! a time specification, and optionally a weekday and week specification.
 //! Separate blocks (if there is more than one) are then concatenated by commata or "and":
 //!
-//! > \<time spec\> [\<weekday spec\>] [\<week spec\>] [,|and ...]
+//! > \<time spec\> [\<weekday spec\>] [\<week spec\>] [plus ...]
 //!
 //! Here are a few examples of complete expressions:
 //!
-//! * at 1 AM and at 6 PM on Saturdays and Sundays
-//! * at 2 PM (Mondays, Thursdays) in even weeks, at 6:45 PM on Wednesdays in odd weeks and at 1 AM
-//! * at 6:30 AM on Mondays and at 6 PM on Thursdays
-//! * at 6 AM, 6 PM (Mondays) and at 8 AM on the first Sunday
+//! * at 1 AM plus at 6 PM on Saturdays and Sundays
+//! * at 2 PM (Mondays, Thursdays) in even weeks plus at 6:45 PM on Wednesdays in odd weeks plus at 1 AM
+//! * at 6:30 AM on Mondays plus at 6 PM on Thursdays
+//! * at 6 AM, 6 PM (Mondays) plus at 8 AM on the first Sunday
 //!
 //! This table gives some more examples for each type of specification in a block:
 //!
@@ -60,7 +60,7 @@
 //!
 //! ### Expression
 //!
-//! * consists of at least one _block_. Multiple blocks are concatenated by _commata_ or _and_
+//! * consists of at least one _block_. Multiple blocks are concatenated by _plus_
 //! * a block consists of three parts: a mandatory _time specification_ and optional _weekday_ and _week specifications_
 //!
 //! ### Times specification

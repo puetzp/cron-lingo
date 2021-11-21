@@ -17,7 +17,10 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
 
     let mut tokens = vec![];
 
+    tokens.push(match_block(&mut position, &chars)?);
+
     while position < chars.len() {
+        eat_block_delimiter(&mut position, &chars)?;
         tokens.push(match_block(&mut position, &chars)?);
     }
 
@@ -31,7 +34,6 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Erro
 
     let days = if *position < chars.len() {
         if is_block_end(&position, &chars) {
-            eat_delimitation(position, chars)?;
             None
         } else {
             Some(match_weekdays(position, chars)?)
@@ -42,7 +44,6 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Erro
 
     let weeks = if *position < chars.len() {
         if is_block_end(&position, &chars) {
-            eat_delimitation(position, chars)?;
             None
         } else {
             eat_whitespace(position, chars)?;
@@ -58,7 +59,7 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Erro
 }
 
 fn is_block_end(position: &usize, chars: &[char]) -> bool {
-    expect_sequence(", at", &position, &chars) || expect_sequence(" and at", &position, &chars)
+    expect_sequence(" plus", &position, &chars)
 }
 
 fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
@@ -69,21 +70,10 @@ fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
     }
 }
 
-fn eat_delimitation(position: &mut usize, chars: &[char]) -> Result<(), Error> {
-    match chars.get(*position) {
-        Some(ch) => {
-            if *ch == ',' {
-                *position += 1;
-                eat_whitespace(position, chars)?;
-            } else {
-                eat_whitespace(position, chars)?;
-                eat_keyword("and", position, chars)?;
-                eat_whitespace(position, chars)?;
-            }
-        }
-        None => return Err(Error::UnexpectedEndOfInput),
-    }
-
+fn eat_block_delimiter(position: &mut usize, chars: &[char]) -> Result<(), Error> {
+    eat_whitespace(position, chars)?;
+    eat_keyword("plus", position, chars)?;
+    eat_whitespace(position, chars)?;
     Ok(())
 }
 
@@ -712,13 +702,13 @@ mod tests {
                 weeks: None,
             },
             ParsedBlock {
-                times: vec![time!(07:00:00)],
+                times: vec![time!(09:00:00)],
                 days: Some(vec![(Weekday::Thursday, None)]),
                 weeks: Some(WeekVariant::Odd),
             },
         ];
         assert_eq!(
-            parse("at 07:00 AM (Mondays) and at 07:00 AM (Thursdays) in odd weeks"),
+            parse("at 07:00 AM (Mondays) plus at 09:00 AM (Thursdays) in odd weeks"),
             Ok(spec)
         );
     }

@@ -38,7 +38,7 @@ impl FromStr for Schedule {
     /// use cron_lingo::Schedule;
     /// use std::str::FromStr;
     ///
-    /// let expr = "at 6 AM on Mondays and Thursdays and at 6 PM on Sundays in even weeks";
+    /// let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
     /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
