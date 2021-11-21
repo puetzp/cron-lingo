@@ -2,6 +2,12 @@ use cron_lingo::Schedule;
 use std::str::FromStr;
 
 #[test]
+fn test_empty_expression() {
+    let result = Schedule::from_str("").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::EmptyExpression);
+}
+
+#[test]
 fn test_schedule_1() {
     let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
     let result = Schedule::from_str(expr);
