@@ -50,7 +50,7 @@ impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "unexpected sequence of characters starting at position '{}', expected {} while the expression continues '{}'",
+            "unexpected sequence of characters starting at position '{}', expected {}, got '{}'",
             self.position, self.expected, self.continues
         )
     }
@@ -67,7 +67,7 @@ impl fmt::Display for UnexpectedEndOfInputError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "the parser reached the end of the input expression while expecting more characters"
+            "the parser reached the end of the expression but expected more characters"
         )
     }
 }

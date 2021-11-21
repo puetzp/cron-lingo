@@ -20,7 +20,9 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
     tokens.push(match_block(&mut position, &chars)?);
 
     while position < chars.len() {
-        eat_block_delimiter(&mut position, &chars)?;
+        eat_whitespace(&mut position, &chars)?;
+        eat_keyword("plus", &mut position, &chars)?;
+        eat_whitespace(&mut position, &chars)?;
         tokens.push(match_block(&mut position, &chars)?);
     }
 
@@ -32,23 +34,15 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Erro
     eat_whitespace(position, chars)?;
     let times = match_times(position, chars)?;
 
-    let days = if *position < chars.len() {
-        if is_block_end(&position, &chars) {
-            None
-        } else {
-            Some(match_weekdays(position, chars)?)
-        }
+    let days = if *position < chars.len() && !is_block_end(&position, &chars) {
+        Some(match_weekdays(position, chars)?)
     } else {
         None
     };
 
-    let weeks = if *position < chars.len() {
-        if is_block_end(&position, &chars) {
-            None
-        } else {
-            eat_whitespace(position, chars)?;
-            Some(match_week(position, chars)?)
-        }
+    let weeks = if *position < chars.len() && !is_block_end(&position, &chars) {
+        eat_whitespace(position, chars)?;
+        Some(match_week(position, chars)?)
     } else {
         None
     };
@@ -68,13 +62,6 @@ fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
         Some(c) => c.iter().collect::<String>().as_str() == sequence,
         None => false,
     }
-}
-
-fn eat_block_delimiter(position: &mut usize, chars: &[char]) -> Result<(), Error> {
-    eat_whitespace(position, chars)?;
-    eat_keyword("plus", position, chars)?;
-    eat_whitespace(position, chars)?;
-    Ok(())
 }
 
 fn eat_keyword(keyword: &str, position: &mut usize, chars: &[char]) -> Result<(), Error> {
@@ -190,13 +177,12 @@ fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<W
     }
 
     if !specific {
-        match chars.get(*position) {
-            Some(c) => {
-                if *c == 's' {
-                    *position += 1;
-                    return Ok(day);
-                } else {
-                    let err = SyntaxError {
+        if let Some(c) = chars.get(*position) {
+            if *c == 's' {
+                *position += 1;
+                return Ok(day);
+            } else {
+                let err = SyntaxError {
                         position: *position,
                         expected: "one of 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays' or 'Sundays'".to_string(),
                         continues: chars
@@ -206,37 +192,34 @@ fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<W
                             .iter()
                             .collect::<String>(),
                     };
-                    return Err(Error::Syntax(err));
-                }
+                return Err(Error::Syntax(err));
             }
-            None => return Err(Error::UnexpectedEndOfInput),
+        } else {
+            return Err(Error::UnexpectedEndOfInput);
         }
-    } else {
-        return Ok(day);
     }
+
+    return Ok(day);
 }
 
 fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), Error> {
-    match chars.get(*position) {
-        Some(ch) => {
-            if ch.is_whitespace() {
-                *position += 1;
-                Ok(())
-            } else {
-                let err = SyntaxError {
-                    position: *position,
-                    expected: "a whitespace".to_string(),
-                    continues: chars
-                        .get(*position..*position + 10)
-                        .or(chars.get(*position..))
-                        .unwrap()
-                        .iter()
-                        .collect::<String>(),
-                };
-                Err(Error::Syntax(err))
-            }
-        }
-        None => Err(Error::UnexpectedEndOfInput),
+    let ch = chars.get(*position).ok_or(Error::UnexpectedEndOfInput)?;
+
+    if ch.is_whitespace() {
+        *position += 1;
+        Ok(())
+    } else {
+        let err = SyntaxError {
+            position: *position,
+            expected: "a whitespace".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
+        };
+        Err(Error::Syntax(err))
     }
 }
 
