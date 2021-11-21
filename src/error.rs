@@ -50,8 +50,9 @@ impl StdError for EmptyExpressionError {}
 /// in an expression and points out the expected input.
 #[derive(Debug, Clone, PartialEq)]
 pub struct SyntaxError {
-    pub position: usize,
-    pub expected: String,
+    pub(crate) position: usize,
+    pub(crate) expected: String,
+    pub(crate) continues: String,
 }
 
 impl fmt::Display for SyntaxError {

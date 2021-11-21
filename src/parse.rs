@@ -102,6 +102,12 @@ fn eat_keyword(keyword: &str, position: &mut usize, chars: &[char]) -> Result<()
         let err = SyntaxError {
             position: *position,
             expected: format!("'{}'", keyword),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
         };
         return Err(Error::Syntax(err));
     }
@@ -151,6 +157,12 @@ fn eat_modifier(position: &mut usize, chars: &[char]) -> Result<WeekdayModifier,
         expected:
             "one of '1st', 'first', '2nd', 'second', '3rd', 'third', '4th', 'fourth' or 'last'"
                 .to_string(),
+        continues: chars
+            .get(*position..*position + 10)
+            .or(chars.get(*position..))
+            .unwrap()
+            .iter()
+            .collect::<String>(),
     };
 
     Err(Error::Syntax(err))
@@ -176,7 +188,13 @@ fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<W
     } else {
         let err = SyntaxError {
             position: *position,
-            expected: "one of 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' or 'Sunday'".to_string()
+            expected: "one of 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday' or 'Sunday'".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
         };
         return Err(Error::Syntax(err));
     }
@@ -190,7 +208,13 @@ fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<W
                 } else {
                     let err = SyntaxError {
                         position: *position,
-                        expected: "one of 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays' or 'Sundays'".to_string()
+                        expected: "one of 'Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays' or 'Sundays'".to_string(),
+                        continues: chars
+                            .get(*position..*position + 10)
+                            .or(chars.get(*position..))
+                            .unwrap()
+                            .iter()
+                            .collect::<String>(),
                     };
                     return Err(Error::Syntax(err));
                 }
@@ -212,6 +236,12 @@ fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), Error> {
                 let err = SyntaxError {
                     position: *position,
                     expected: "a whitespace".to_string(),
+                    continues: chars
+                        .get(*position..*position + 10)
+                        .or(chars.get(*position..))
+                        .unwrap()
+                        .iter()
+                        .collect::<String>(),
                 };
                 Err(Error::Syntax(err))
             }
@@ -226,37 +256,39 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Error>
     tokens.push(match_time(position, chars)?);
 
     // Check for more occurrences of time tokens.
-    loop {
-        if is_block_end(&position, &chars) {
-            break;
-        } else {
-            match chars.get(*position) {
-                Some(ch) => {
-                    if *ch == ',' {
-                        *position += 1;
+    while !is_block_end(&position, chars) {
+        match chars.get(*position) {
+            Some(ch) => {
+                if *ch == ',' {
+                    *position += 1;
+                    eat_whitespace(position, chars)?;
+                    tokens.push(match_time(position, chars)?);
+                    continue;
+                } else if ch.is_whitespace() {
+                    if expect_sequence(" and", &position, &chars) {
+                        eat_whitespace(position, chars)?;
+                        eat_keyword("and", position, chars)?;
                         eat_whitespace(position, chars)?;
                         tokens.push(match_time(position, chars)?);
                         continue;
-                    } else if ch.is_whitespace() {
-                        if expect_sequence(" and", &position, &chars) {
-                            eat_whitespace(position, chars)?;
-                            eat_keyword("and", position, chars)?;
-                            eat_whitespace(position, chars)?;
-                            tokens.push(match_time(position, chars)?);
-                            continue;
-                        } else {
-                            break;
-                        }
                     } else {
-                        let err = SyntaxError {
-                            position: *position,
-                            expected: "either ',' or a whitespace".to_string(),
-                        };
-                        return Err(Error::Syntax(err));
+                        break;
                     }
+                } else {
+                    let err = SyntaxError {
+                        position: *position,
+                        expected: "either ',' or a whitespace".to_string(),
+                        continues: chars
+                            .get(*position..*position + 10)
+                            .or(chars.get(*position..))
+                            .unwrap()
+                            .iter()
+                            .collect::<String>(),
+                    };
+                    return Err(Error::Syntax(err));
                 }
-                None => break,
             }
+            None => break,
         }
     }
 
@@ -271,6 +303,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
             let err = SyntaxError {
                 position: *position,
                 expected: "a number between 1 and 12 with optional zero-padding".to_string(),
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
             };
             Error::Syntax(err)
         })?
@@ -280,6 +318,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
         let err = SyntaxError {
             position: *position,
             expected: "a number between 1 and 12 with optional zero-padding".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
         };
         return Err(Error::Syntax(err));
     }
@@ -294,6 +338,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
             let err = SyntaxError {
                 position: *position,
                 expected: "one of a number between 0 and 2, a colon or a whitespace".to_string(),
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
             };
             Error::Syntax(err)
         })?
@@ -310,6 +360,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
                 let err = SyntaxError {
                     position: *position,
                     expected: "either 'AM' or 'PM'".to_string(),
+                    continues: chars
+                        .get(*position..*position + 10)
+                        .or(chars.get(*position..))
+                        .unwrap()
+                        .iter()
+                        .collect::<String>(),
                 };
                 Error::Syntax(err)
             })?
@@ -335,6 +391,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
             let err = SyntaxError {
                 position: *position,
                 expected: "a number between 00 and 59 followed by either 'AM' or 'PM'".to_string(),
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
             };
             Error::Syntax(err)
         })? {
@@ -357,6 +419,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
                 let err = SyntaxError {
                     position: *position,
                     expected: "either a ':' or a whitespace".to_string(),
+                    continues: chars
+                        .get(*position..*position + 10)
+                        .or(chars.get(*position..))
+                        .unwrap()
+                        .iter()
+                        .collect::<String>(),
                 };
                 Error::Syntax(err)
             })?
@@ -373,6 +441,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
                     let err = SyntaxError {
                         position: *position,
                         expected: "either 'AM' or 'PM'".to_string(),
+                        continues: chars
+                            .get(*position..*position + 10)
+                            .or(chars.get(*position..))
+                            .unwrap()
+                            .iter()
+                            .collect::<String>(),
                     };
                     Error::Syntax(err)
                 })?
@@ -398,6 +472,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
                     position: *position,
                     expected: "a number between 00 and 59 followed by either 'AM' or 'PM'"
                         .to_string(),
+                    continues: chars
+                        .get(*position..*position + 10)
+                        .or(chars.get(*position..))
+                        .unwrap()
+                        .iter()
+                        .collect::<String>(),
                 };
                 Error::Syntax(err)
             })? {
@@ -414,6 +494,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
             let err = SyntaxError {
                 position: *position,
                 expected: "either ',' or a whitespace".to_string(),
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
             };
             Err(Error::Syntax(err))
         }
@@ -421,6 +507,12 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
         let err = SyntaxError {
             position: *position,
             expected: "one of a number between 0 and 2, ',' or a whitespace".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
         };
         Err(Error::Syntax(err))
     }
@@ -449,6 +541,12 @@ fn match_weekdays(
             let err = SyntaxError {
                 position: *position,
                 expected: "either '(' or 'on'".to_string(),
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
             };
             return Err(Error::Syntax(err));
         }
@@ -456,40 +554,41 @@ fn match_weekdays(
 
     tokens.push(match_weekday(position, chars)?);
 
-    loop {
-        match chars.get(*position) {
-            Some(ch) => {
-                if *ch == ',' {
-                    *position += 1;
-                    eat_whitespace(position, chars)?;
-                    tokens.push(match_weekday(position, chars)?);
-                    continue;
-                } else if ch.is_whitespace() {
-                    if expect_sequence(" and", &position, &chars) {
-                        eat_whitespace(position, chars)?;
-                        eat_keyword("and", position, chars)?;
-                        eat_whitespace(position, chars)?;
-                        tokens.push(match_weekday(position, chars)?);
-                        continue;
-                    } else {
-                        break;
-                    }
-                } else if *ch == ')' {
-                    break;
-                } else {
-                    let expected = if has_braces {
-                        "either ',', ')' or a whitespace".to_string()
-                    } else {
-                        "either ',' or a whitespace".to_string()
-                    };
-                    let err = SyntaxError {
-                        position: *position,
-                        expected,
-                    };
-                    return Err(Error::Syntax(err));
-                }
+    while let Some(ch) = chars.get(*position) {
+        if *ch == ',' {
+            *position += 1;
+            eat_whitespace(position, chars)?;
+            tokens.push(match_weekday(position, chars)?);
+            continue;
+        } else if ch.is_whitespace() {
+            if expect_sequence(" and", &position, &chars) {
+                eat_whitespace(position, chars)?;
+                eat_keyword("and", position, chars)?;
+                eat_whitespace(position, chars)?;
+                tokens.push(match_weekday(position, chars)?);
+                continue;
+            } else {
+                break;
             }
-            None => break,
+        } else if *ch == ')' {
+            break;
+        } else {
+            let expected = if has_braces {
+                "either ',', ')' or a whitespace".to_string()
+            } else {
+                "either ',' or a whitespace".to_string()
+            };
+            let err = SyntaxError {
+                position: *position,
+                expected,
+                continues: chars
+                    .get(*position..*position + 10)
+                    .or(chars.get(*position..))
+                    .unwrap()
+                    .iter()
+                    .collect::<String>(),
+            };
+            return Err(Error::Syntax(err));
         }
     }
 
@@ -502,6 +601,12 @@ fn match_weekdays(
                     let err = SyntaxError {
                         position: *position,
                         expected: "a ')'".to_string(),
+                        continues: chars
+                            .get(*position..*position + 10)
+                            .or(chars.get(*position..))
+                            .unwrap()
+                            .iter()
+                            .collect::<String>(),
                     };
                     return Err(Error::Syntax(err));
                 }
@@ -510,6 +615,12 @@ fn match_weekdays(
                 let err = SyntaxError {
                     position: *position,
                     expected: "a ')'".to_string(),
+                    continues: chars
+                        .get(*position..*position + 10)
+                        .or(chars.get(*position..))
+                        .unwrap()
+                        .iter()
+                        .collect::<String>(),
                 };
                 return Err(Error::Syntax(err));
             }
@@ -559,6 +670,12 @@ fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, Error
         let err = SyntaxError {
             position: *position,
             expected: "either 'in even weeks' or 'in odd weeks'".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
         };
         return Err(Error::Syntax(err));
     }
