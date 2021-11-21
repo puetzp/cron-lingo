@@ -3,7 +3,8 @@ use std::fmt;
 
 /// A global error type that encapsulates all other, more specific
 /// error types below.
-#[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
+#[derive(Debug, PartialEq)]
 pub enum Error {
     EmptyExpression,
     Syntax(SyntaxError),
@@ -35,8 +36,6 @@ impl fmt::Display for EmptyExpressionError {
         write!(f, "the expression string must not be empty")
     }
 }
-
-impl StdError for EmptyExpressionError {}
 
 /// Generic syntax error. Gives the exact position of the erroneous character
 /// in an expression and points out the expected input.
@@ -72,5 +71,3 @@ impl fmt::Display for UnexpectedEndOfInputError {
         )
     }
 }
-
-impl StdError for UnexpectedEndOfInputError {}
