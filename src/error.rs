@@ -50,8 +50,8 @@ impl fmt::Display for SyntaxError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
-            "unexpected sequence of characters starting at position '{}', expected {}",
-            self.position, self.expected
+            "unexpected sequence of characters starting at position '{}', expected {} while the expression continues '{}'",
+            self.position, self.expected, self.continues
         )
     }
 }
