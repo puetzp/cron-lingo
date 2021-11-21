@@ -7,9 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.3.2] - 2021-08-08
 ### Added
 - Introduced new WeekdayModifier variant "Last" to select the last occurrence of some weekday, e.g. "at 6 PM (last Monday)"
+- `cron_lingo::error::Error::UnexpectedEndOfInput`
+- `cron_lingo::error::Error::Syntax` and `cron_lingo::error::SyntaxError`
 ### Changed
+- Rename `cron_lingo::error::InvalidExpression` to simply `cron_lingo::error::Error`.
 - Multiple blocks are now concatenated by `plus` to avoid ambiguity.
 - Moved from time v0.2.22 to v0.3. Compile flag is needed in order to avoid runtime errors when the local offset is retrieved internally: `RUSTFLAGS="--cfg unsound_local_offset" cargo build`
+### Removed
+- Removed variants `DuplicateInput` and `IllogicalWeekdayCombination` from error enum as the occurrence of duplicates et al. does not prevent correct computation of the next upcoming date.
 
 ## [0.3.1] - 2021-06-10
 ### Added
