@@ -2,11 +2,17 @@ use crate::error::*;
 use crate::types::{ParsedBlock, WeekVariant, WeekdayModifier};
 use time::{Time, Weekday};
 
+// Prepares a format description for times formatted as e.g. "1 AM" or "01 AM".
 const TIME_FORMAT_NO_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12] [period case:upper]");
+
+// Prepares a format description for times formatted as e.g. "1:00 AM" or "01:30 AM".
 const TIME_FORMAT_WITH_MINUTES: &[time::format_description::FormatItem] =
     time::macros::format_description!("[hour padding:none repr:12]:[minute] [period case:upper]");
 
+// Parses an expression block by block which are concatenated by "plus", checking for
+// possibly reaching the end of the expression along the way.
+// Returns a collection of parsed blocks.
 pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
     let chars: Vec<char> = expression.chars().collect();
     let mut position: usize = 0;
@@ -29,6 +35,7 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
     Ok(tokens)
 }
 
+// Parses a single block of times, weekdays and odd/even week specifications.
 fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Error> {
     eat_keyword("at", position, chars)?;
     eat_whitespace(position, chars)?;
@@ -52,10 +59,14 @@ fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Erro
     Ok(spec)
 }
 
+// Defines a shorthand for a look-ahead to determine if the end of an individual
+// block has been reached.
 fn is_block_end(position: &usize, chars: &[char]) -> bool {
     expect_sequence(" plus", &position, &chars)
 }
 
+// Looks ahead and checks for an arbitrary pattern without actually advancing the
+// pointer.
 fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
     let end_pos = *position + sequence.len();
     match chars.get(*position..end_pos) {
@@ -64,6 +75,10 @@ fn expect_sequence(sequence: &str, position: &usize, chars: &[char]) -> bool {
     }
 }
 
+// Consumes a pattern, usually a single word, by advancing the pointer beyond the
+// end of the pattern.
+// Returns an error if there are no more characters to match against or the actual
+// collection of characters does not match the pattern.
 fn eat_keyword(keyword: &str, position: &mut usize, chars: &[char]) -> Result<(), Error> {
     let end_pos = *position + keyword.len();
 
@@ -92,6 +107,8 @@ fn eat_keyword(keyword: &str, position: &mut usize, chars: &[char]) -> Result<()
     Ok(())
 }
 
+// Consumes a well-defined weekday modifier and returns a parsed representation of it
+// or an error if the pattern at hand does not match the expected string.
 fn eat_modifier(position: &mut usize, chars: &[char]) -> Result<WeekdayModifier, Error> {
     if eat_keyword("1st", position, chars).is_ok() {
         return Ok(WeekdayModifier::First);
@@ -145,6 +162,9 @@ fn eat_modifier(position: &mut usize, chars: &[char]) -> Result<WeekdayModifier,
     Err(Error::Syntax(err))
 }
 
+// Consumes a well-defined weekday (either worded in a specific or "general" way).
+// Returns either the parsed representation of and error if the pattern at hand
+// does not match the expected string or no more characters are there to consume.
 fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<Weekday, Error> {
     let day;
 
@@ -202,6 +222,7 @@ fn eat_weekday(position: &mut usize, chars: &[char], specific: bool) -> Result<W
     return Ok(day);
 }
 
+// Consumes a single whitespace or returns an error.
 fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), Error> {
     let ch = chars.get(*position).ok_or(Error::UnexpectedEndOfInput)?;
 
@@ -223,6 +244,7 @@ fn eat_whitespace(position: &mut usize, chars: &[char]) -> Result<(), Error> {
     }
 }
 
+// Matches, parses and returns a collection of parsed times.
 fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Error> {
     let mut tokens = vec![];
 
@@ -268,6 +290,7 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Error>
     Ok(tokens)
 }
 
+// Matches and parses a single time.
 fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     // First character must be a number.
     let hour = chars
@@ -491,6 +514,8 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     }
 }
 
+// Matches, parses and returns a collection of weekdays with optional
+// modifiers.
 fn match_weekdays(
     position: &mut usize,
     chars: &[char],
@@ -603,6 +628,7 @@ fn match_weekdays(
     Ok(tokens)
 }
 
+// Matches and parses a single weekday with optional modifier.
 fn match_weekday(
     position: &mut usize,
     chars: &[char],
@@ -634,6 +660,7 @@ fn match_weekday(
     return Ok((day, modifier));
 }
 
+// Matches and parses the week modifier.
 fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, Error> {
     if eat_keyword("in even weeks", position, chars).is_ok() {
         return Ok(WeekVariant::Even);
