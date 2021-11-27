@@ -295,19 +295,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     // First character must be a number.
     let hour = chars
         .get(*position)
-        .ok_or_else(|| {
-            let err = SyntaxError {
-                position: *position,
-                expected: "a number between 1 and 12 with optional zero-padding".to_string(),
-                continues: chars
-                    .get(*position..*position + 10)
-                    .or(chars.get(*position..))
-                    .unwrap()
-                    .iter()
-                    .collect::<String>(),
-            };
-            Error::Syntax(err)
-        })?
+        .ok_or(Error::UnexpectedEndOfInput)?
         .clone();
 
     if !hour.is_numeric() {
@@ -330,19 +318,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     // or a whitespace.
     let next = chars
         .get(*position)
-        .ok_or_else(|| {
-            let err = SyntaxError {
-                position: *position,
-                expected: "one of a number between 0 and 2, a colon or a whitespace".to_string(),
-                continues: chars
-                    .get(*position..*position + 10)
-                    .or(chars.get(*position..))
-                    .unwrap()
-                    .iter()
-                    .collect::<String>(),
-            };
-            Error::Syntax(err)
-        })?
+        .ok_or(Error::UnexpectedEndOfInput)?
         .clone();
 
     *position += 1;
@@ -411,19 +387,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
         let next = chars
             .get(*position)
-            .ok_or_else(|| {
-                let err = SyntaxError {
-                    position: *position,
-                    expected: "either a ':' or a whitespace".to_string(),
-                    continues: chars
-                        .get(*position..*position + 10)
-                        .or(chars.get(*position..))
-                        .unwrap()
-                        .iter()
-                        .collect::<String>(),
-                };
-                Error::Syntax(err)
-            })?
+            .ok_or(Error::UnexpectedEndOfInput)?
             .clone();
 
         *position += 1;
@@ -536,17 +500,7 @@ fn match_weekdays(
             }
         }
         None => {
-            let err = SyntaxError {
-                position: *position,
-                expected: "either '(' or 'on'".to_string(),
-                continues: chars
-                    .get(*position..*position + 10)
-                    .or(chars.get(*position..))
-                    .unwrap()
-                    .iter()
-                    .collect::<String>(),
-            };
-            return Err(Error::Syntax(err));
+            return Err(Error::UnexpectedEndOfInput);
         }
     };
 
@@ -566,7 +520,21 @@ fn match_weekdays(
                 tokens.push(match_weekday(position, chars)?);
                 continue;
             } else {
-                break;
+                if has_braces {
+                    let err = SyntaxError {
+                        position: *position,
+                        expected: "'and'".to_string(),
+                        continues: chars
+                            .get(*position..*position + 10)
+                            .or(chars.get(*position..))
+                            .unwrap()
+                            .iter()
+                            .collect::<String>(),
+                    };
+                    return Err(Error::Syntax(err));
+                } else {
+                    break;
+                }
             }
         } else if *ch == ')' {
             break;
@@ -610,17 +578,7 @@ fn match_weekdays(
                 }
             }
             None => {
-                let err = SyntaxError {
-                    position: *position,
-                    expected: "a ')'".to_string(),
-                    continues: chars
-                        .get(*position..*position + 10)
-                        .or(chars.get(*position..))
-                        .unwrap()
-                        .iter()
-                        .collect::<String>(),
-                };
-                return Err(Error::Syntax(err));
+                return Err(Error::UnexpectedEndOfInput);
             }
         }
     }
@@ -662,6 +620,10 @@ fn match_weekday(
 
 // Matches and parses the week modifier.
 fn match_week(position: &mut usize, chars: &[char]) -> Result<WeekVariant, Error> {
+    if *position >= chars.len() {
+        return Err(Error::UnexpectedEndOfInput);
+    }
+
     if eat_keyword("in even weeks", position, chars).is_ok() {
         return Ok(WeekVariant::Even);
     } else if eat_keyword("in odd weeks", position, chars).is_ok() {
