@@ -11,25 +11,33 @@
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
 //!
-//! let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
-//! let schedule = Schedule::from_str(expr).unwrap();
-//! assert!(schedule.iter().next().is_some());
+//! // Create a schedule from an expression and iterate.
+//! let expr = "at 6:30 AM and 12:30 PM on Mondays and Thursdays";
+//! let schedule1 = Schedule::from_str(expr).unwrap();
+//! assert!(schedule1.iter().next().is_some());
+//!
+//! // Create another schedule, add it to the first, and then iterate.
+//! let schedule2 = Schedule::from_str("at 8 PM on the first Sunday").unwrap();
+//! let combination = schedule1 + schedule2;
+//! assert!(combination.iter().next().is_some());
 //! ```
 //!
 //! # Expression syntax
 //!
-//! An expression consists of {1, n} blocks. Each block consists of three parts:
+//! A single expression consists of three parts:
 //! a time specification, and optionally a weekday and week specification.
-//! Separate blocks (if there is more than one) are then concatenated by commata or "and":
 //!
-//! > \<time spec\> [\<weekday spec\>] [\<week spec\>] [plus ...]
+//! > \<time spec\> [\<weekday spec\>] [\<week spec\>]
 //!
-//! Here are a few examples of complete expressions:
+//! Here are a few random examples of complete expressions:
 //!
-//! * at 1 AM plus at 6 PM on Saturdays and Sundays
-//! * at 2 PM (Mondays, Thursdays) in even weeks plus at 6:45 PM on Wednesdays in odd weeks plus at 1 AM
-//! * at 6:30 AM on Mondays plus at 6 PM on Thursdays
-//! * at 6 AM, 6 PM (Mondays) plus at 8 AM on the first Sunday
+//! * at 1 AM
+//! * 6 PM on Saturdays and Sundays
+//! * at 2 PM (Mondays, Thursdays) in even weeks
+//! * at 6:45 PM on Wednesdays in odd weeks
+//! * at 6:30 AM on Mondays
+//! * at 6 AM, 6 PM (Mondays)
+//! * at 8 AM on the first Sunday
 //!
 //! This table gives some more examples for each type of specification in a block:
 //!
@@ -41,9 +49,9 @@
 //! | at 6 AM, 12 AM, 6 PM   |                              |                  |
 //! | at 8:30 AM             |                              | in odd weeks     |
 //! | at 8 AM                | on Wednesdays                |                  |
-//! | at 8 AM                | on the first Monday          |                  |
-//! | at 8 PM                | on the 4th Friday            | in even weeks    |
-//! | at 8 PM                | on Wednesdays and Sundays    |                  |
+//! | at 08 AM                | on the first Monday          |                  |
+//! | at 08 PM                | on the 4th Friday            | in even weeks    |
+//! | at 08 PM                | on Wednesdays and Sundays    |                  |
 //! | at 5:45 AM             | (Mondays and Thursdays)      |                  |
 //! | at 6 AM and 6 PM       | (first Sunday)               |                  |
 //! | at 1:15 PM             | (1st Monday and 2nd Friday)  |                  |
@@ -57,11 +65,6 @@
 //! The examples above cover the basic rules of the expression syntax to a certain (and for most use cases
 //! probably sufficient) extent.
 //! Nevertheless, here is a list of "rules" that an expression must comply with and that you might find useful to avoid mistakes:
-//!
-//! ### Expression
-//!
-//! * consists of at least one _block_. Multiple blocks are concatenated by _plus_
-//! * a block consists of three parts: a mandatory _time specification_ and optional _weekday_ and _week specifications_
 //!
 //! ### Times specification
 //!
@@ -79,7 +82,6 @@
 //! * consists of a list of _weekdays_ with optional _modifiers_ to select only specific weekdays in a month.
 //! * the list either starts with _on_ OR is enclosed by simple braces _()_ for compactness
 //! * a weekday must be one of [ Monday | Tuesday | Wednesday | Thursday | Friday | Saturday | Sunday ] appended with an ***s*** if e.g. _every_ Monday is to be included OR a weekday preceded by a modifier [ first | 1st | second | 2nd | third | 3rd | fourth | 4th | last ] in order to include only specific weekdays in a month.
-//! * illogical combinations like "on Mondays and the first Monday" result in an error
 //!
 //! ### Week specification
 //!

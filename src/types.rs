@@ -16,7 +16,7 @@ pub(crate) enum WeekdayModifier {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub(crate) struct ParsedBlock {
+pub(crate) struct ParsedSchedule {
     pub times: Vec<Time>,
     pub days: Option<Vec<(Weekday, Option<WeekdayModifier>)>>,
     pub weeks: Option<WeekVariant>,

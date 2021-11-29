@@ -4,15 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.2] - 2021-08-08
+## [0.4.0] - Unreleased
 ### Added
-- Introduced new WeekdayModifier variant "Last" to select the last occurrence of some weekday, e.g. "at 6 PM (last Monday)"
-- `cron_lingo::error::Error::UnexpectedEndOfInput`
-- `cron_lingo::error::Error::Syntax` and `cron_lingo::error::SyntaxError`
+- Introduced new WeekdayModifier variant "Last" to select the last occurrence of some weekday, e.g. "at 6 PM (last Monday)".
+- Added `MultiSchedule` to accomodate a combination of several distinct `Schedule`s.
+- Added `cron_lingo::error::Error::UnexpectedEndOfInput`.
+- Added `cron_lingo::error::Error::Syntax` and `cron_lingo::error::SyntaxError`.
 ### Changed
-- Rename `cron_lingo::error::InvalidExpression` to simply `cron_lingo::error::Error`.
-- Multiple blocks are now concatenated by `plus` to avoid ambiguity.
-- Moved from time v0.2.22 to v0.3. Compile flag is needed in order to avoid runtime errors when the local offset is retrieved internally: `RUSTFLAGS="--cfg unsound_local_offset" cargo build`
+- Renamed `cron_lingo::error::InvalidExpression` to simply `cron_lingo::error::Error`.
+- Expressions must now be parsed separately using `from_str` but may then be combined together with `std::ops::Add` or added to an existing `MultiSchedule` using `std::ops::AddAssign`.
+- Moved from time v0.2.22 to v0.3. Compile flag is needed in order to avoid runtime errors when the local offset is retrieved internally: `RUSTFLAGS="--cfg unsound_local_offset" cargo build`. The compile flag may be omitted when your application is single-threaded.
 ### Removed
 - Removed variants `DuplicateInput` and `IllogicalWeekdayCombination` from error enum as the occurrence of duplicates et al. does not prevent correct computation of the next upcoming date.
 

@@ -16,42 +16,42 @@ fn test_unexpected_end_of_input() {
 
 #[test]
 fn test_schedule_1() {
-    let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
+    let expr = "at 6 AM (Mondays and Thursdays)";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
 
 #[test]
 fn test_schedule_2() {
-    let expr = "at 1 AM plus at 6 PM on Saturdays and Sundays";
+    let expr = "at 6 PM on Saturdays and Sundays";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
 
 #[test]
 fn test_schedule_3() {
-    let expr = "at 6 AM on Mondays plus at 6 PM on Thursdays";
+    let expr = "at 6 AM on the last Monday";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
 
 #[test]
 fn test_schedule_4() {
-    let expr = "at 6 AM, 6 PM (Mondays) plus at 8 AM on the first Sunday";
+    let expr = "at 6 AM, 6 PM (Mondays) in even weeks";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
 
 #[test]
 fn test_schedule_5() {
-    let expr = "at 2 PM (Mondays, Thursdays) in even weeks plus at 6 PM on Wednesdays in odd weeks plus at 1 AM";
+    let expr = "at 2 PM (Mondays, Thursdays, Saturdays and last Sunday) in even weeks";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
 
 #[test]
 fn test_schedule_6() {
-    let expr = "at 6:30 AM on Mondays plus at 6 PM on Thursdays";
+    let expr = "at 6:30 AM on the first Monday and 4th Saturday";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }
@@ -59,6 +59,48 @@ fn test_schedule_6() {
 #[test]
 fn test_schedule_7() {
     let expr = "at 8:15 AM (Fridays and the first Saturday) in even weeks";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_8() {
+    let expr = "at 6 PM on Sundays in even weeks";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_9() {
+    let expr = "at 6 PM on the 1st Saturday and Sundays";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_10() {
+    let expr = "at 6 PM on Thursdays in odd weeks";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_11() {
+    let expr = "at 8 AM and 8 PM on the first Sunday";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_12() {
+    let expr = "at 1 AM, 5:30 AM, 12 PM, 5:30 PM and 11:59 PM";
+    let result = Schedule::from_str(expr);
+    assert!(result.is_ok(), "{:?}", result);
+}
+
+#[test]
+fn test_schedule_13() {
+    let expr = "at 6:30 PM on Thursdays";
     let result = Schedule::from_str(expr);
     assert!(result.is_ok(), "{:?}", result);
 }

@@ -1,5 +1,5 @@
 use crate::error::*;
-use crate::types::{ParsedBlock, WeekVariant, WeekdayModifier};
+use crate::types::{ParsedSchedule, WeekVariant, WeekdayModifier};
 use time::{Time, Weekday};
 
 // Prepares a format description for times formatted as e.g. "1 AM" or "01 AM".
@@ -13,7 +13,7 @@ const TIME_FORMAT_WITH_MINUTES: &[time::format_description::FormatItem] =
 // Parses an expression block by block which are concatenated by "plus", checking for
 // possibly reaching the end of the expression along the way.
 // Returns a collection of parsed blocks.
-pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
+pub(crate) fn parse(expression: &str) -> Result<ParsedSchedule, Error> {
     let chars: Vec<char> = expression.chars().collect();
     let mut position: usize = 0;
 
@@ -21,48 +21,27 @@ pub(crate) fn parse(expression: &str) -> Result<Vec<ParsedBlock>, Error> {
         return Err(Error::EmptyExpression);
     }
 
-    let mut tokens = vec![];
+    eat_keyword("at", &mut position, &chars)?;
+    eat_whitespace(&mut position, &chars)?;
 
-    tokens.push(match_block(&mut position, &chars)?);
+    let times = match_times(&mut position, &chars)?;
 
-    while position < chars.len() {
-        eat_whitespace(&mut position, &chars)?;
-        eat_keyword("plus", &mut position, &chars)?;
-        eat_whitespace(&mut position, &chars)?;
-        tokens.push(match_block(&mut position, &chars)?);
-    }
-
-    Ok(tokens)
-}
-
-// Parses a single block of times, weekdays and odd/even week specifications.
-fn match_block(position: &mut usize, chars: &[char]) -> Result<ParsedBlock, Error> {
-    eat_keyword("at", position, chars)?;
-    eat_whitespace(position, chars)?;
-    let times = match_times(position, chars)?;
-
-    let days = if *position < chars.len() && !is_block_end(&position, &chars) {
-        Some(match_weekdays(position, chars)?)
+    let days = if position < chars.len() {
+        Some(match_weekdays(&mut position, &chars)?)
     } else {
         None
     };
 
-    let weeks = if *position < chars.len() && !is_block_end(&position, &chars) {
-        eat_whitespace(position, chars)?;
-        Some(match_week(position, chars)?)
+    let weeks = if position < chars.len() {
+        eat_whitespace(&mut position, &chars)?;
+        Some(match_week(&mut position, &chars)?)
     } else {
         None
     };
 
-    let spec = ParsedBlock { times, days, weeks };
+    let spec = ParsedSchedule { times, days, weeks };
 
     Ok(spec)
-}
-
-// Defines a shorthand for a look-ahead to determine if the end of an individual
-// block has been reached.
-fn is_block_end(position: &usize, chars: &[char]) -> bool {
-    expect_sequence(" plus", &position, &chars)
 }
 
 // Looks ahead and checks for an arbitrary pattern without actually advancing the
@@ -251,7 +230,7 @@ fn match_times(position: &mut usize, chars: &[char]) -> Result<Vec<Time>, Error>
     tokens.push(match_time(position, chars)?);
 
     // Check for more occurrences of time tokens.
-    while !is_block_end(&position, chars) {
+    loop {
         match chars.get(*position) {
             Some(ch) => {
                 if *ch == ',' {
@@ -650,7 +629,7 @@ mod tests {
 
     #[test]
     fn test_parse_single_block() {
-        let spec = vec![ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(07:30:00), time!(17:00:00), time!(04:00:00)],
             days: Some(vec![
                 (Weekday::Monday, None),
@@ -658,29 +637,9 @@ mod tests {
                 (Weekday::Friday, Some(WeekdayModifier::Last)),
             ]),
             weeks: Some(WeekVariant::Odd),
-        }];
+        };
         assert_eq!(
             parse("at 07:30 AM, 5 PM and 4 AM on Mondays and Wednesdays and the last Friday in odd weeks"),
-            Ok(spec)
-        );
-    }
-
-    #[test]
-    fn test_parse_multiple_blocks() {
-        let spec = vec![
-            ParsedBlock {
-                times: vec![time!(07:00:00)],
-                days: Some(vec![(Weekday::Monday, None)]),
-                weeks: None,
-            },
-            ParsedBlock {
-                times: vec![time!(09:00:00)],
-                days: Some(vec![(Weekday::Thursday, None)]),
-                weeks: Some(WeekVariant::Odd),
-            },
-        ];
-        assert_eq!(
-            parse("at 07:00 AM (Mondays) plus at 09:00 AM (Thursdays) in odd weeks"),
             Ok(spec)
         );
     }

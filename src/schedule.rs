@@ -9,20 +9,17 @@ use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 /// in order to compute the next date(s) that match the specification. By
 /// default the computation is based on the current system time, meaning
 /// the iterator will never return a date in the past.
-///
-/// The expression must adhere to a specific syntax. See the module-level
-/// documentation for the full range of possibilities.
 #[derive(Debug, PartialEq, Clone)]
 pub struct Schedule {
     base: OffsetDateTime,
-    specs: Vec<ParsedBlock>,
+    spec: ParsedSchedule,
 }
 
 impl Schedule {
     #[allow(dead_code)]
     pub fn iter(&self) -> ScheduleIter {
         ScheduleIter {
-            schedule: self.clone(),
+            schedule: self.spec.clone(),
             current: self.base,
             skip_outdated: true,
         }
@@ -38,22 +35,33 @@ impl FromStr for Schedule {
     /// use cron_lingo::Schedule;
     /// use std::str::FromStr;
     ///
-    /// let expr = "at 6 AM on Mondays and Thursdays plus at 6 PM on Sundays in even weeks";
+    /// let expr = "at 6 AM on Mondays and Thursdays in even weeks";
     /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
         let tt = Schedule {
             base: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
-            specs: parse(expression)?,
+            spec: parse(expression)?,
         };
         Ok(tt)
+    }
+}
+
+impl std::ops::Add<Schedule> for Schedule {
+    type Output = MultiSchedule;
+
+    fn add(self, other: Self) -> Self::Output {
+        MultiSchedule {
+            base: self.base,
+            schedules: vec![self.spec, other.spec],
+        }
     }
 }
 
 /// A wrapper around `Schedule` that keeps track of state during iteration.
 #[derive(Clone)]
 pub struct ScheduleIter {
-    schedule: Schedule,
+    schedule: ParsedSchedule,
     current: OffsetDateTime,
     skip_outdated: bool,
 }
@@ -82,11 +90,97 @@ impl Iterator for ScheduleIter {
         }
 
         // Create every possible combination of dates for each
-        // ParsedBlock and add them to a vector.
+        // ParsedSchedule and add them to a vector.
+        let candidates: Vec<OffsetDateTime> = compute_dates(self.current, &self.schedule);
+
+        // Iterate the vector of dates and find the next date
+        // by subtracting the current date from each element
+        // in the vector. Return the date that results in the
+        // lowest delta.
+        let next_date = candidates
+            .iter()
+            .min_by_key(|d| **d - self.current)
+            .unwrap();
+
+        self.current = *next_date;
+
+        Some(*next_date)
+    }
+}
+
+/// A combination of multiple schedules that can be iterated in order
+/// to compute the next date(s) that match the set of specifications. By
+/// default the computation is based on the current system time, meaning
+/// the iterator will never return a date in the past.
+#[derive(Debug, PartialEq, Clone)]
+pub struct MultiSchedule {
+    base: OffsetDateTime,
+    schedules: Vec<ParsedSchedule>,
+}
+
+impl MultiSchedule {
+    #[allow(dead_code)]
+    pub fn iter(&self) -> MultiScheduleIter {
+        MultiScheduleIter {
+            schedules: self.schedules.clone(),
+            current: self.base,
+            skip_outdated: true,
+        }
+    }
+}
+
+impl std::ops::Add<Schedule> for MultiSchedule {
+    type Output = Self;
+
+    fn add(mut self, other: Schedule) -> Self {
+        self.schedules.push(other.spec);
+        self
+    }
+}
+
+impl std::ops::AddAssign<Schedule> for MultiSchedule {
+    fn add_assign(&mut self, other: Schedule) {
+        self.schedules.push(other.spec);
+    }
+}
+
+/// A wrapper around `MultiSchedule` that keeps track of state during iteration.
+#[derive(Clone)]
+pub struct MultiScheduleIter {
+    schedules: Vec<ParsedSchedule>,
+    current: OffsetDateTime,
+    skip_outdated: bool,
+}
+
+impl MultiScheduleIter {
+    /// By default the `next` method will not return a date that is
+    /// in the past but compute the next future date based on the
+    /// current local time instead. This method allows to change the
+    /// iterators default behaviour.
+    pub fn skip_outdated(mut self, skip: bool) -> MultiScheduleIter {
+        self.skip_outdated = skip;
+        self
+    }
+}
+
+impl Iterator for MultiScheduleIter {
+    type Item = OffsetDateTime;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.skip_outdated {
+            let now = OffsetDateTime::now_local().unwrap();
+
+            if now > self.current {
+                self.current = now;
+            }
+        }
+
+        // Create every possible combination of dates for each
+        // ParsedSchedule and add them to a vector.
         let mut candidates: Vec<OffsetDateTime> = vec![];
 
-        for spec in self.schedule.specs.clone() {
-            candidates.append(&mut compute_dates(self.current, spec));
+        for schedule in &self.schedules {
+            candidates.append(&mut compute_dates(self.current, schedule));
         }
 
         // Iterate the vector of dates and find the next date
@@ -104,18 +198,18 @@ impl Iterator for ScheduleIter {
     }
 }
 
-// Returns a selection of possible next dates according to the rules in a ParsedBlock.
-fn compute_dates(base: OffsetDateTime, spec: ParsedBlock) -> Vec<OffsetDateTime> {
+// Returns a selection of possible next dates according to the rules in a ParsedSchedule.
+fn compute_dates(base: OffsetDateTime, spec: &ParsedSchedule) -> Vec<OffsetDateTime> {
     let mut candidates = vec![];
     let today = base.date();
     let offset = base.offset();
 
     // For each specified time ...
-    for time in spec.times {
+    for time in &spec.times {
         // ... create an OffsetDateTime object for each upcoming weekday ...
         for i in 0..=6 {
             let mut date =
-                PrimitiveDateTime::new(today + Duration::days(i), time).assume_offset(offset);
+                PrimitiveDateTime::new(today + Duration::days(i), *time).assume_offset(offset);
 
             if date <= base {
                 date += Duration::weeks(1);
@@ -145,7 +239,7 @@ fn compute_dates(base: OffsetDateTime, spec: ParsedBlock) -> Vec<OffsetDateTime>
         }
     }
 
-    // ... and return the filtered date candidates of this ParsedBlock.
+    // ... and return the filtered date candidates of this ParsedSchedule.
     candidates
 }
 
@@ -195,7 +289,7 @@ mod tests {
     #[test]
     fn test_compute_dates_1() {
         let base = datetime!(2021-06-04 13:38:00 UTC);
-        let spec = ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(12:00:00), time!(18:00:00)],
             days: None,
             weeks: None,
@@ -216,13 +310,13 @@ mod tests {
             datetime!(2021-06-09 18:00:00 UTC),
             datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, &spec), result);
     }
 
     #[test]
     fn test_compute_dates_2() {
         let base = datetime!(2021-06-04 13:38:00 UTC);
-        let spec = ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(18:00:00)],
             days: Some(vec![(Weekday::Monday, None), (Weekday::Thursday, None)]),
             weeks: None,
@@ -231,13 +325,13 @@ mod tests {
             datetime!(2021-06-07 18:00:00 UTC),
             datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, &spec), result);
     }
 
     #[test]
     fn test_compute_dates_3() {
         let base = datetime!(2021-06-04 13:38:00 UTC);
-        let spec = ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(18:00:00)],
             days: Some(vec![
                 (Weekday::Monday, Some(WeekdayModifier::Second)),
@@ -249,13 +343,13 @@ mod tests {
             datetime!(2021-06-14 18:00:00 UTC),
             datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, &spec), result);
     }
 
     #[test]
     fn test_compute_dates_4() {
         let base = datetime!(2021-06-04 13:38:00 UTC);
-        let spec = ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(12:00:00), time!(18:00:00)],
             days: Some(vec![
                 (Weekday::Friday, Some(WeekdayModifier::First)),
@@ -269,13 +363,13 @@ mod tests {
             datetime!(2021-06-04 18:00:00 UTC),
             datetime!(2021-06-10 18:00:00 UTC),
         ];
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, &spec), result);
     }
 
     #[test]
     fn test_compute_dates_5() {
         let base = datetime!(2021-06-12 13:38:00 UTC);
-        let spec = ParsedBlock {
+        let spec = ParsedSchedule {
             times: vec![time!(06:00:00), time!(12:00:00), time!(18:00:00)],
             days: Some(vec![
                 (Weekday::Friday, Some(WeekdayModifier::First)),
@@ -296,18 +390,18 @@ mod tests {
             datetime!(2021-07-02 18:00:00 UTC),
         ];
 
-        assert_eq!(compute_dates(base, spec), result);
+        assert_eq!(compute_dates(base, &spec), result);
     }
 
     #[test]
     fn test_schedule_iteration_1() {
         let schedule = Schedule {
             base: datetime!(2021-06-09 13:00:00 UTC),
-            specs: vec![ParsedBlock {
+            spec: ParsedSchedule {
                 times: vec![time!(01:00:00)],
                 days: None,
                 weeks: None,
-            }],
+            },
         };
 
         let result = vec![
@@ -330,11 +424,11 @@ mod tests {
     fn test_schedule_iteration_2() {
         let schedule = Schedule {
             base: datetime!(2021-06-09 13:00:00 UTC),
-            specs: vec![ParsedBlock {
+            spec: ParsedSchedule {
                 times: vec![time!(13:00:00)],
                 days: Some(vec![(Weekday::Monday, None)]),
                 weeks: None,
-            }],
+            },
         };
 
         let result = vec![
@@ -357,14 +451,14 @@ mod tests {
     fn test_schedule_iteration_3() {
         let schedule = Schedule {
             base: datetime!(2021-06-09 13:00:00 UTC),
-            specs: vec![ParsedBlock {
+            spec: ParsedSchedule {
                 times: vec![time!(06:00:00), time!(13:00:00)],
                 days: Some(vec![
                     (Weekday::Monday, Some(WeekdayModifier::Third)),
                     (Weekday::Thursday, None),
                 ]),
                 weeks: None,
-            }],
+            },
         };
 
         let result = vec![
@@ -390,10 +484,10 @@ mod tests {
 
     #[test]
     fn test_schedule_iteration_4() {
-        let schedule = Schedule {
+        let schedule = MultiSchedule {
             base: datetime!(2021-06-09 13:00:00 UTC),
-            specs: vec![
-                ParsedBlock {
+            schedules: vec![
+                ParsedSchedule {
                     times: vec![time!(06:00:00), time!(13:00:00)],
                     days: Some(vec![
                         (Weekday::Monday, Some(WeekdayModifier::Third)),
@@ -401,7 +495,7 @@ mod tests {
                     ]),
                     weeks: None,
                 },
-                ParsedBlock {
+                ParsedSchedule {
                     times: vec![time!(18:00:00)],
                     days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
                     weeks: Some(WeekVariant::Odd),
@@ -435,10 +529,10 @@ mod tests {
 
     #[test]
     fn test_schedule_iteration_5() {
-        let schedule = Schedule {
+        let schedule = MultiSchedule {
             base: datetime!(2021-06-18 13:00:00 UTC),
-            specs: vec![
-                ParsedBlock {
+            schedules: vec![
+                ParsedSchedule {
                     times: vec![time!(06:00:00), time!(18:00:00)],
                     days: Some(vec![
                         (Weekday::Monday, Some(WeekdayModifier::Last)),
@@ -446,7 +540,7 @@ mod tests {
                     ]),
                     weeks: None,
                 },
-                ParsedBlock {
+                ParsedSchedule {
                     times: vec![time!(18:00:00)],
                     days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
                     weeks: None,
