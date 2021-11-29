@@ -578,4 +578,49 @@ mod tests {
             result
         );
     }
+
+    #[test]
+    fn test_add_two_schedules() {
+        let sched1 = Schedule {
+            base: datetime!(2021-06-09 13:00:00 UTC),
+            spec: ParsedSchedule {
+                times: vec![time!(06:00:00), time!(13:00:00)],
+                days: Some(vec![
+                    (Weekday::Monday, Some(WeekdayModifier::Third)),
+                    (Weekday::Thursday, None),
+                ]),
+                weeks: None,
+            },
+        };
+
+        let sched2 = Schedule {
+            base: datetime!(2222-12-01 00:00:00 UTC),
+            spec: ParsedSchedule {
+                times: vec![time!(18:00:00)],
+                days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+                weeks: Some(WeekVariant::Odd),
+            },
+        };
+
+        let multi_sched = MultiSchedule {
+            base: datetime!(2021-06-09 13:00:00 UTC),
+            schedules: vec![
+                ParsedSchedule {
+                    times: vec![time!(06:00:00), time!(13:00:00)],
+                    days: Some(vec![
+                        (Weekday::Monday, Some(WeekdayModifier::Third)),
+                        (Weekday::Thursday, None),
+                    ]),
+                    weeks: None,
+                },
+                ParsedSchedule {
+                    times: vec![time!(18:00:00)],
+                    days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+                    weeks: Some(WeekVariant::Odd),
+                },
+            ],
+        };
+
+        assert_eq!(multi_sched, sched1 + sched2)
+    }
 }
