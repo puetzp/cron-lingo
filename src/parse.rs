@@ -297,9 +297,8 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     // or a whitespace.
     let next = chars.get(*position).ok_or(Error::UnexpectedEndOfInput)?;
 
-    *position += 1;
-
     if next.is_whitespace() {
+        *position += 1;
         let mut time = String::new();
         time.push(hour);
         time.push(' ');
@@ -314,6 +313,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
         Ok(parsed)
     } else if *next == ':' {
+        *position += 1;
         let mut time = String::new();
         time.push(hour);
         time.push(*next);
@@ -337,6 +337,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
         Ok(parsed)
     } else if next.is_numeric() {
+        *position += 1;
         let mut time = String::new();
         time.push(hour);
         time.push(*next);
@@ -397,7 +398,8 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     } else {
         let err = SyntaxError {
             position: *position,
-            expected: "one of a number between 0 and 2, ',' or a whitespace".to_string(),
+            expected: "the remainder of a number in the range 01..=12, a colon or a whitespace"
+                .to_string(),
             continues: chars
                 .get(*position..*position + 10)
                 .or(chars.get(*position..))
