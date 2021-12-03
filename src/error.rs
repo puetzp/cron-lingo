@@ -19,7 +19,7 @@ impl fmt::Display for Error {
             Self::EmptyExpression => EmptyExpressionError.fmt(f),
             Self::Syntax(e) => e.fmt(f),
             Self::UnexpectedEndOfInput => UnexpectedEndOfInputError.fmt(f),
-            Self::TimeParse(e) => e.fmt(f),
+            Self::TimeParse(e) => write!(f, "failed to parse time: {}", e),
             Self::IndeterminateOffset(e) => e.fmt(f),
         }
     }
