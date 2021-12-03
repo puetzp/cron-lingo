@@ -9,8 +9,49 @@ fn test_empty_expression() {
 
 #[test]
 fn test_unexpected_end_of_input() {
-    let expr = "at 6 AM on Mondays and";
-    let result = Schedule::from_str(expr).unwrap_err();
+    let result = Schedule::from_str("at").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at ").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 08").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 8:").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 8:0").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 8:00 ").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 8:00 AM ").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 8:00 AM on").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM on Mondays and").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM on Mondays and Thursdays ").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM (").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM (Mondays").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM (Mondays and").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM (Mondays and Thursdays").unwrap_err();
+    assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
+
+    let result = Schedule::from_str("at 6 AM (Mondays and Thursdays) ").unwrap_err();
     assert_eq!(result, cron_lingo::error::Error::UnexpectedEndOfInput);
 }
 

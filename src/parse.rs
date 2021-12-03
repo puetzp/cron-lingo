@@ -307,19 +307,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
         let mut time: String = chars
             .get(*position..end_pos)
-            .ok_or_else(|| {
-                let err = SyntaxError {
-                    position: *position,
-                    expected: "either 'AM' or 'PM'".to_string(),
-                    continues: chars
-                        .get(*position..*position + 10)
-                        .or(chars.get(*position..))
-                        .unwrap()
-                        .iter()
-                        .collect::<String>(),
-                };
-                Error::Syntax(err)
-            })?
+            .ok_or(Error::UnexpectedEndOfInput)?
             .iter()
             .collect();
 
@@ -338,19 +326,10 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
         let end_pos = *position + 5;
 
-        for c in chars.get(*position..end_pos).ok_or_else(|| {
-            let err = SyntaxError {
-                position: *position,
-                expected: "a number between 00 and 59 followed by either 'AM' or 'PM'".to_string(),
-                continues: chars
-                    .get(*position..*position + 10)
-                    .or(chars.get(*position..))
-                    .unwrap()
-                    .iter()
-                    .collect::<String>(),
-            };
-            Error::Syntax(err)
-        })? {
+        for c in chars
+            .get(*position..end_pos)
+            .ok_or(Error::UnexpectedEndOfInput)?
+        {
             complete.push(*c);
         }
 
@@ -376,19 +355,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
             let time: String = chars
                 .get(*position..end_pos)
-                .ok_or_else(|| {
-                    let err = SyntaxError {
-                        position: *position,
-                        expected: "either 'AM' or 'PM'".to_string(),
-                        continues: chars
-                            .get(*position..*position + 10)
-                            .or(chars.get(*position..))
-                            .unwrap()
-                            .iter()
-                            .collect::<String>(),
-                    };
-                    Error::Syntax(err)
-                })?
+                .ok_or(Error::UnexpectedEndOfInput)?
                 .iter()
                 .collect();
 
@@ -406,20 +373,10 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
             let end_pos = *position + 5;
 
-            for c in chars.get(*position..end_pos).ok_or_else(|| {
-                let err = SyntaxError {
-                    position: *position,
-                    expected: "a number between 00 and 59 followed by either 'AM' or 'PM'"
-                        .to_string(),
-                    continues: chars
-                        .get(*position..*position + 10)
-                        .or(chars.get(*position..))
-                        .unwrap()
-                        .iter()
-                        .collect::<String>(),
-                };
-                Error::Syntax(err)
-            })? {
+            for c in chars
+                .get(*position..end_pos)
+                .ok_or(Error::UnexpectedEndOfInput)?
+            {
                 complete.push(*c);
             }
 
