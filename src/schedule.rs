@@ -6,23 +6,20 @@ use std::str::FromStr;
 use time::{Duration, OffsetDateTime, PrimitiveDateTime};
 
 /// A schedule that is built from an expression and can be iterated
-/// in order to compute the next date(s) that match the specification. By
-/// default the computation is based on the current system time, meaning
-/// the iterator will never return a date in the past.
+/// in order to compute the next date(s) that match the specification.
 #[derive(Debug, PartialEq, Clone)]
-pub struct Schedule {
-    base: OffsetDateTime,
-    spec: ParsedSchedule,
-}
+pub struct Schedule(ParsedSchedule);
 
 impl Schedule {
     #[allow(dead_code)]
-    pub fn iter(&self) -> ScheduleIter {
-        ScheduleIter {
-            schedule: self.spec.clone(),
-            current: self.base,
+    pub fn iter(&self) -> Result<ScheduleIter, Error> {
+        let Schedule(schedule) = self;
+        let iter = ScheduleIter {
+            schedule: schedule.clone(),
+            current: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
             skip_outdated: true,
-        }
+        };
+        Ok(iter)
     }
 }
 
@@ -39,11 +36,7 @@ impl FromStr for Schedule {
     /// assert!(Schedule::from_str(expr).is_ok());
     /// ```
     fn from_str(expression: &str) -> Result<Self, Self::Err> {
-        let tt = Schedule {
-            base: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
-            spec: parse(expression)?,
-        };
-        Ok(tt)
+        Ok(Schedule(parse(expression)?))
     }
 }
 
@@ -51,10 +44,9 @@ impl std::ops::Add<Schedule> for Schedule {
     type Output = MultiSchedule;
 
     fn add(self, other: Self) -> Self::Output {
-        MultiSchedule {
-            base: self.base,
-            schedules: vec![self.spec, other.spec],
-        }
+        let Schedule(first) = self;
+        let Schedule(second) = other;
+        MultiSchedule(vec![first, second])
     }
 }
 
@@ -78,14 +70,17 @@ impl ScheduleIter {
 }
 
 impl Iterator for ScheduleIter {
-    type Item = OffsetDateTime;
+    type Item = Result<OffsetDateTime, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.skip_outdated {
-            let now = OffsetDateTime::now_local().unwrap();
-
-            if now > self.current {
-                self.current = now;
+            match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
+                Ok(now) => {
+                    if now > self.current {
+                        self.current = now;
+                    }
+                }
+                Err(e) => return Some(Err(e)),
             }
         }
 
@@ -104,7 +99,7 @@ impl Iterator for ScheduleIter {
 
         self.current = *next_date;
 
-        Some(*next_date)
+        Some(Ok(*next_date))
     }
 }
 
@@ -113,65 +108,71 @@ impl Iterator for ScheduleIter {
 /// default the computation is based on the current system time, meaning
 /// the iterator will never return a date in the past.
 #[derive(Debug, PartialEq, Clone)]
-pub struct MultiSchedule {
-    base: OffsetDateTime,
-    schedules: Vec<ParsedSchedule>,
-}
+pub struct MultiSchedule(Vec<ParsedSchedule>);
 
 impl MultiSchedule {
     #[allow(dead_code)]
-    pub fn iter(&self) -> MultiScheduleIter {
-        MultiScheduleIter {
-            schedules: self.schedules.clone(),
-            current: self.base,
+    pub fn iter(&self) -> Result<MultiScheduleIter, Error> {
+        let MultiSchedule(schedules) = self;
+        let iter = MultiScheduleIter {
+            schedules: &schedules,
+            current: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
             skip_outdated: true,
-        }
+        };
+        Ok(iter)
     }
 }
 
 impl std::ops::Add<Schedule> for MultiSchedule {
     type Output = Self;
 
-    fn add(mut self, other: Schedule) -> Self {
-        self.schedules.push(other.spec);
-        self
+    fn add(self, other: Schedule) -> Self {
+        let MultiSchedule(mut schedules) = self;
+        let Schedule(schedule) = other;
+        schedules.push(schedule);
+        MultiSchedule(schedules)
     }
 }
 
 impl std::ops::AddAssign<Schedule> for MultiSchedule {
     fn add_assign(&mut self, other: Schedule) {
-        self.schedules.push(other.spec);
+        let MultiSchedule(schedules) = self;
+        let Schedule(schedule) = other;
+        schedules.push(schedule);
     }
 }
 
 /// A wrapper around `MultiSchedule` that keeps track of state during iteration.
 #[derive(Clone)]
-pub struct MultiScheduleIter {
-    schedules: Vec<ParsedSchedule>,
+pub struct MultiScheduleIter<'a> {
+    schedules: &'a [ParsedSchedule],
     current: OffsetDateTime,
     skip_outdated: bool,
 }
 
-impl MultiScheduleIter {
+impl<'a> MultiScheduleIter<'a> {
     /// By default the `next` method will not return a date that is
     /// in the past but compute the next future date based on the
     /// current local time instead. This method allows to change the
     /// iterators default behaviour.
-    pub fn skip_outdated(mut self, skip: bool) -> MultiScheduleIter {
+    pub fn skip_outdated(mut self, skip: bool) -> MultiScheduleIter<'a> {
         self.skip_outdated = skip;
         self
     }
 }
 
-impl Iterator for MultiScheduleIter {
-    type Item = OffsetDateTime;
+impl<'a> Iterator for MultiScheduleIter<'a> {
+    type Item = Result<OffsetDateTime, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.skip_outdated {
-            let now = OffsetDateTime::now_local().unwrap();
-
-            if now > self.current {
-                self.current = now;
+            match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
+                Ok(now) => {
+                    if now > self.current {
+                        self.current = now;
+                    }
+                }
+                Err(e) => return Some(Err(e)),
             }
         }
 
@@ -179,7 +180,7 @@ impl Iterator for MultiScheduleIter {
         // ParsedSchedule and add them to a vector.
         let mut candidates: Vec<OffsetDateTime> = vec![];
 
-        for schedule in &self.schedules {
+        for schedule in self.schedules {
             candidates.append(&mut compute_dates(self.current, schedule));
         }
 
@@ -194,7 +195,7 @@ impl Iterator for MultiScheduleIter {
 
         self.current = *next_date;
 
-        Some(*next_date)
+        Some(Ok(*next_date))
     }
 }
 

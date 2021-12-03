@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Renamed `cron_lingo::error::InvalidExpression` to simply `cron_lingo::error::Error`.
 - Expressions must now be parsed separately using `from_str` but may then be combined together with `std::ops::Add` or added to an existing `MultiSchedule` using `std::ops::AddAssign`.
+- Iterator of `Schedule` or `MultiSchedule` is now fallible (`next()` returns `Option<Result<time::OffsetDateTime, cron_lingo::error::Error>`) as the retrieval of the local offset may fail.
+- Creation of said iterators via `Schedule::iter()` or `MultiSchedule::iter()` is now fallible as well for the same reason.
 - Moved from time v0.2.22 to v0.3. Compile flag is needed in order to avoid runtime errors when the local offset is retrieved internally: `RUSTFLAGS="--cfg unsound_local_offset" cargo build`. The compile flag may be omitted when your application is single-threaded.
 ### Removed
 - Removed variants `DuplicateInput` and `IllogicalWeekdayCombination` from error enum as the occurrence of duplicates et al. does not prevent correct computation of the next upcoming date.
