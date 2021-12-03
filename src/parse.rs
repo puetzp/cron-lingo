@@ -280,7 +280,7 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
     if !hour.is_numeric() {
         let err = SyntaxError {
             position: *position,
-            expected: "a number between 1 and 12 with optional zero-padding".to_string(),
+            expected: "a number in the range 01..=12".to_string(),
             continues: chars
                 .get(*position..*position + 10)
                 .or(chars.get(*position..))
@@ -295,53 +295,51 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
 
     // Next character may be the next part of a 2-digit number, a colon,
     // or a whitespace.
-    let next = chars
-        .get(*position)
-        .ok_or(Error::UnexpectedEndOfInput)?
-        .clone();
+    let next = chars.get(*position).ok_or(Error::UnexpectedEndOfInput)?;
 
     *position += 1;
 
     if next.is_whitespace() {
-        let end_pos = *position + 2;
+        let mut time = String::new();
+        time.push(hour);
+        time.push(' ');
 
-        let mut time: String = chars
-            .get(*position..end_pos)
-            .ok_or(Error::UnexpectedEndOfInput)?
-            .iter()
-            .collect();
+        for i in 0..2 {
+            time.push(match_period(i, position, chars)?);
+        }
 
-        *position = end_pos;
-
-        time.insert(0, ' ');
-        time.insert(0, hour);
+        *position += 2;
 
         let parsed = Time::parse(&time, &TIME_FORMAT_NO_MINUTES).map_err(Error::TimeParse)?;
 
         Ok(parsed)
-    } else if next == ':' {
-        let mut complete = String::new();
-        complete.push(hour);
-        complete.push(next);
+    } else if *next == ':' {
+        let mut time = String::new();
+        time.push(hour);
+        time.push(*next);
 
-        let end_pos = *position + 5;
-
-        for c in chars
-            .get(*position..end_pos)
-            .ok_or(Error::UnexpectedEndOfInput)?
-        {
-            complete.push(*c);
+        for i in 0..2 {
+            time.push(match_minute(i, position, chars)?);
         }
 
-        *position = end_pos;
+        *position += 2;
 
-        let parsed = Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
+        eat_whitespace(position, chars)?;
+        time.push(' ');
+
+        for i in 0..2 {
+            time.push(match_period(i, position, chars)?);
+        }
+
+        *position += 2;
+
+        let parsed = Time::parse(&time, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
 
         Ok(parsed)
     } else if next.is_numeric() {
-        let mut complete = String::new();
-        complete.push(hour);
-        complete.push(next);
+        let mut time = String::new();
+        time.push(hour);
+        time.push(*next);
 
         let next = chars
             .get(*position)
@@ -351,39 +349,36 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
         *position += 1;
 
         if next.is_whitespace() {
-            let end_pos = *position + 2;
+            time.push(' ');
 
-            let time: String = chars
-                .get(*position..end_pos)
-                .ok_or(Error::UnexpectedEndOfInput)?
-                .iter()
-                .collect();
+            for i in 0..2 {
+                time.push(match_period(i, position, chars)?);
+            }
 
-            *position = end_pos;
+            *position += 2;
 
-            complete.push(' ');
-            complete.push_str(&time);
-
-            let parsed =
-                Time::parse(&complete, &TIME_FORMAT_NO_MINUTES).map_err(Error::TimeParse)?;
+            let parsed = Time::parse(&time, &TIME_FORMAT_NO_MINUTES).map_err(Error::TimeParse)?;
 
             Ok(parsed)
         } else if next == ':' {
-            complete.push(next);
+            time.push(next);
 
-            let end_pos = *position + 5;
-
-            for c in chars
-                .get(*position..end_pos)
-                .ok_or(Error::UnexpectedEndOfInput)?
-            {
-                complete.push(*c);
+            for i in 0..2 {
+                time.push(match_minute(i, position, chars)?);
             }
 
-            *position = end_pos;
+            *position += 2;
 
-            let parsed =
-                Time::parse(&complete, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
+            eat_whitespace(position, chars)?;
+            time.push(' ');
+
+            for i in 0..2 {
+                time.push(match_period(i, position, chars)?);
+            }
+
+            *position += 2;
+
+            let parsed = Time::parse(&time, &TIME_FORMAT_WITH_MINUTES).map_err(Error::TimeParse)?;
 
             Ok(parsed)
         } else {
@@ -411,6 +406,62 @@ fn match_time(position: &mut usize, chars: &[char]) -> Result<Time, Error> {
                 .collect::<String>(),
         };
         Err(Error::Syntax(err))
+    }
+}
+
+// Match and check the next character as part of a double-digit time period
+// on a surface level (heavy lifting is done by the time crate).
+// In order to provide a more useful error message this function only checks one
+// part of a compound using an extra index that is added to the position. When
+// the function fails the position points to the start of the compound instead
+// of the single offending character.
+fn match_period(index: usize, position: &mut usize, chars: &[char]) -> Result<char, Error> {
+    let c = chars
+        .get(*position + index)
+        .ok_or(Error::UnexpectedEndOfInput)?;
+
+    if c.is_alphabetic() && c.is_uppercase() {
+        Ok(*c)
+    } else {
+        let err = SyntaxError {
+            position: *position + index,
+            expected: "either 'AM or 'PM'".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
+        };
+        return Err(Error::Syntax(err));
+    }
+}
+
+// Match and check the next character as part of a double-digit minute compound
+// on a surface level (heavy lifting is done by the time crate).
+// In order to provide a more useful error message this function only checks one
+// part of a compound using an extra index that is added to the position. When
+// the function fails the position points to the start of the compound instead
+// of the single offending character.
+fn match_minute(index: usize, position: &mut usize, chars: &[char]) -> Result<char, Error> {
+    let c = chars
+        .get(*position + index)
+        .ok_or(Error::UnexpectedEndOfInput)?;
+
+    if c.is_numeric() {
+        Ok(*c)
+    } else {
+        let err = SyntaxError {
+            position: *position + index,
+            expected: "a number in the range 00..=59".to_string(),
+            continues: chars
+                .get(*position..*position + 10)
+                .or(chars.get(*position..))
+                .unwrap()
+                .iter()
+                .collect::<String>(),
+        };
+        return Err(Error::Syntax(err));
     }
 }
 
