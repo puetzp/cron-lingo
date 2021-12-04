@@ -134,11 +134,30 @@ impl std::ops::Add<Schedule> for MultiSchedule {
     }
 }
 
+impl std::ops::Add<MultiSchedule> for MultiSchedule {
+    type Output = Self;
+
+    fn add(self, other: MultiSchedule) -> Self {
+        let MultiSchedule(mut schedules) = self;
+        let MultiSchedule(mut other_schedules) = other;
+        schedules.append(&mut other_schedules);
+        MultiSchedule(schedules)
+    }
+}
+
 impl std::ops::AddAssign<Schedule> for MultiSchedule {
     fn add_assign(&mut self, other: Schedule) {
         let MultiSchedule(schedules) = self;
         let Schedule(schedule) = other;
         schedules.push(schedule);
+    }
+}
+
+impl std::ops::AddAssign<MultiSchedule> for MultiSchedule {
+    fn add_assign(&mut self, other: MultiSchedule) {
+        let MultiSchedule(schedules) = self;
+        let MultiSchedule(mut other_schedules) = other;
+        schedules.append(&mut other_schedules);
     }
 }
 
