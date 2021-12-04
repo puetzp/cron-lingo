@@ -2,24 +2,25 @@
 //! The resulting object can be turned into an iterator to compute the next date
 //! (as a `time::OffsetDateTime`) one at a time.
 //!
-//! The basic idea was to strip down the set of features that we know from our favorite
-//! implementation of cron in order to keep the results predictable, which may or may
-//! not be the case with cron in some situations (e.g. using the step notation "*/2").
-//!
 //! # Example
 //! ```rust
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
+//! use std::error::Error;
 //!
-//! // Create a schedule from an expression and iterate.
-//! let expr = "at 6:30 AM and 12:30 PM on Mondays and Thursdays";
-//! let schedule1 = Schedule::from_str(expr).unwrap();
-//! assert!(schedule1.iter().unwrap().next().is_some());
+//! fn main() -> Result<(), cron_lingo::error::Error> {
+//!     // Create a schedule from an expression and iterate.
+//!     let expr = "at 6:30 AM and 12:30 PM on Mondays and Thursdays";
+//!     let schedule1 = Schedule::from_str(expr)?;
+//!     assert!(schedule1.iter()?.next().is_some());
 //!
-//! // Create another schedule, add it to the first, and then iterate.
-//! let schedule2 = Schedule::from_str("at 8 PM on the first Sunday").unwrap();
-//! let combination = schedule1 + schedule2;
-//! assert!(combination.iter().unwrap().next().is_some());
+//!     // Create another schedule, add it to the first, and then iterate.
+//!     let schedule2 = Schedule::from_str("at 8 PM on the first Sunday")?;
+//!     let combination = schedule1 + schedule2;
+//!     assert!(combination.iter()?.next().is_some());
+//!
+//!     Ok(())
+//! }
 //! ```
 //!
 //! # Expression syntax
