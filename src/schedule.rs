@@ -396,63 +396,61 @@ mod tests {
 
     #[test]
     fn test_schedule_iteration_1() {
-        let schedule = Schedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            spec: ParsedSchedule {
+        let iterator = ScheduleIter {
+            current: datetime!(2021-06-09 13:00:00 UTC),
+            schedule: ParsedSchedule {
                 times: vec![time!(01:00:00)],
                 days: None,
                 weeks: None,
             },
+            skip_outdated: false,
         };
 
         let result = vec![
-            datetime!(2021-06-10 01:00:00 UTC),
-            datetime!(2021-06-11 01:00:00 UTC),
-            datetime!(2021-06-12 01:00:00 UTC),
+            Ok(datetime!(2021-06-10 01:00:00 UTC)),
+            Ok(datetime!(2021-06-11 01:00:00 UTC)),
+            Ok(datetime!(2021-06-12 01:00:00 UTC)),
         ];
 
         assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
+            iterator
                 .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );
     }
 
     #[test]
     fn test_schedule_iteration_2() {
-        let schedule = Schedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            spec: ParsedSchedule {
+        let iterator = ScheduleIter {
+            current: datetime!(2021-06-09 13:00:00 UTC),
+            schedule: ParsedSchedule {
                 times: vec![time!(13:00:00)],
                 days: Some(vec![(Weekday::Monday, None)]),
                 weeks: None,
             },
+            skip_outdated: false,
         };
 
         let result = vec![
-            datetime!(2021-06-14 13:00:00 UTC),
-            datetime!(2021-06-21 13:00:00 UTC),
-            datetime!(2021-06-28 13:00:00 UTC),
+            Ok(datetime!(2021-06-14 13:00:00 UTC)),
+            Ok(datetime!(2021-06-21 13:00:00 UTC)),
+            Ok(datetime!(2021-06-28 13:00:00 UTC)),
         ];
 
         assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
+            iterator
                 .take(3)
-                .collect::<Vec<OffsetDateTime>>(),
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );
     }
 
     #[test]
     fn test_schedule_iteration_3() {
-        let schedule = Schedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            spec: ParsedSchedule {
+        let iterator = ScheduleIter {
+            current: datetime!(2021-06-09 13:00:00 UTC),
+            schedule: ParsedSchedule {
                 times: vec![time!(06:00:00), time!(13:00:00)],
                 days: Some(vec![
                     (Weekday::Monday, Some(WeekdayModifier::Third)),
@@ -460,34 +458,33 @@ mod tests {
                 ]),
                 weeks: None,
             },
+            skip_outdated: false,
         };
 
         let result = vec![
-            datetime!(2021-06-10 06:00:00 UTC),
-            datetime!(2021-06-10 13:00:00 UTC),
-            datetime!(2021-06-17 06:00:00 UTC),
-            datetime!(2021-06-17 13:00:00 UTC),
-            datetime!(2021-06-21 06:00:00 UTC),
-            datetime!(2021-06-21 13:00:00 UTC),
-            datetime!(2021-06-24 06:00:00 UTC),
-            datetime!(2021-06-24 13:00:00 UTC),
+            Ok(datetime!(2021-06-10 06:00:00 UTC)),
+            Ok(datetime!(2021-06-10 13:00:00 UTC)),
+            Ok(datetime!(2021-06-17 06:00:00 UTC)),
+            Ok(datetime!(2021-06-17 13:00:00 UTC)),
+            Ok(datetime!(2021-06-21 06:00:00 UTC)),
+            Ok(datetime!(2021-06-21 13:00:00 UTC)),
+            Ok(datetime!(2021-06-24 06:00:00 UTC)),
+            Ok(datetime!(2021-06-24 13:00:00 UTC)),
         ];
 
         assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
+            iterator
                 .take(8)
-                .collect::<Vec<OffsetDateTime>>(),
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );
     }
 
     #[test]
     fn test_schedule_iteration_4() {
-        let schedule = MultiSchedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            schedules: vec![
+        let iterator = MultiScheduleIter {
+            current: datetime!(2021-06-09 13:00:00 UTC),
+            schedules: &vec![
                 ParsedSchedule {
                     times: vec![time!(06:00:00), time!(13:00:00)],
                     days: Some(vec![
@@ -502,37 +499,36 @@ mod tests {
                     weeks: Some(WeekVariant::Odd),
                 },
             ],
+            skip_outdated: false,
         };
 
         let result = vec![
-            datetime!(2021-06-10 06:00:00 UTC),
-            datetime!(2021-06-10 13:00:00 UTC),
-            datetime!(2021-06-17 06:00:00 UTC),
-            datetime!(2021-06-17 13:00:00 UTC),
-            datetime!(2021-06-21 06:00:00 UTC),
-            datetime!(2021-06-21 13:00:00 UTC),
-            datetime!(2021-06-24 06:00:00 UTC),
-            datetime!(2021-06-24 13:00:00 UTC),
-            datetime!(2021-06-26 18:00:00 UTC),
-            datetime!(2021-07-01 06:00:00 UTC),
-            datetime!(2021-07-01 13:00:00 UTC),
+            Ok(datetime!(2021-06-10 06:00:00 UTC)),
+            Ok(datetime!(2021-06-10 13:00:00 UTC)),
+            Ok(datetime!(2021-06-17 06:00:00 UTC)),
+            Ok(datetime!(2021-06-17 13:00:00 UTC)),
+            Ok(datetime!(2021-06-21 06:00:00 UTC)),
+            Ok(datetime!(2021-06-21 13:00:00 UTC)),
+            Ok(datetime!(2021-06-24 06:00:00 UTC)),
+            Ok(datetime!(2021-06-24 13:00:00 UTC)),
+            Ok(datetime!(2021-06-26 18:00:00 UTC)),
+            Ok(datetime!(2021-07-01 06:00:00 UTC)),
+            Ok(datetime!(2021-07-01 13:00:00 UTC)),
         ];
 
         assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
+            iterator
                 .take(11)
-                .collect::<Vec<OffsetDateTime>>(),
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );
     }
 
     #[test]
     fn test_schedule_iteration_5() {
-        let schedule = MultiSchedule {
-            base: datetime!(2021-06-18 13:00:00 UTC),
-            schedules: vec![
+        let iterator = MultiScheduleIter {
+            current: datetime!(2021-06-18 13:00:00 UTC),
+            schedules: &vec![
                 ParsedSchedule {
                     times: vec![time!(06:00:00), time!(18:00:00)],
                     days: Some(vec![
@@ -547,44 +543,57 @@ mod tests {
                     weeks: None,
                 },
             ],
+            skip_outdated: false,
         };
 
         let result = vec![
-            datetime!(2021-06-24 06:00:00 UTC),
-            datetime!(2021-06-24 18:00:00 UTC),
-            datetime!(2021-06-26 18:00:00 UTC),
-            datetime!(2021-06-28 06:00:00 UTC),
-            datetime!(2021-06-28 18:00:00 UTC),
-            datetime!(2021-07-01 06:00:00 UTC),
-            datetime!(2021-07-01 18:00:00 UTC),
-            datetime!(2021-07-08 06:00:00 UTC),
-            datetime!(2021-07-08 18:00:00 UTC),
-            datetime!(2021-07-15 06:00:00 UTC),
-            datetime!(2021-07-15 18:00:00 UTC),
-            datetime!(2021-07-22 06:00:00 UTC),
-            datetime!(2021-07-22 18:00:00 UTC),
-            datetime!(2021-07-24 18:00:00 UTC),
-            datetime!(2021-07-26 06:00:00 UTC),
-            datetime!(2021-07-26 18:00:00 UTC),
-            datetime!(2021-07-29 06:00:00 UTC),
-            datetime!(2021-07-29 18:00:00 UTC),
+            Ok(datetime!(2021-06-24 06:00:00 UTC)),
+            Ok(datetime!(2021-06-24 18:00:00 UTC)),
+            Ok(datetime!(2021-06-26 18:00:00 UTC)),
+            Ok(datetime!(2021-06-28 06:00:00 UTC)),
+            Ok(datetime!(2021-06-28 18:00:00 UTC)),
+            Ok(datetime!(2021-07-01 06:00:00 UTC)),
+            Ok(datetime!(2021-07-01 18:00:00 UTC)),
+            Ok(datetime!(2021-07-08 06:00:00 UTC)),
+            Ok(datetime!(2021-07-08 18:00:00 UTC)),
+            Ok(datetime!(2021-07-15 06:00:00 UTC)),
+            Ok(datetime!(2021-07-15 18:00:00 UTC)),
+            Ok(datetime!(2021-07-22 06:00:00 UTC)),
+            Ok(datetime!(2021-07-22 18:00:00 UTC)),
+            Ok(datetime!(2021-07-24 18:00:00 UTC)),
+            Ok(datetime!(2021-07-26 06:00:00 UTC)),
+            Ok(datetime!(2021-07-26 18:00:00 UTC)),
+            Ok(datetime!(2021-07-29 06:00:00 UTC)),
+            Ok(datetime!(2021-07-29 18:00:00 UTC)),
         ];
 
         assert_eq!(
-            schedule
-                .iter()
-                .skip_outdated(false)
+            iterator
                 .take(18)
-                .collect::<Vec<OffsetDateTime>>(),
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );
     }
 
     #[test]
     fn test_add_two_schedules() {
-        let sched1 = Schedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            spec: ParsedSchedule {
+        let sched1 = Schedule(ParsedSchedule {
+            times: vec![time!(06:00:00), time!(13:00:00)],
+            days: Some(vec![
+                (Weekday::Monday, Some(WeekdayModifier::Third)),
+                (Weekday::Thursday, None),
+            ]),
+            weeks: None,
+        });
+
+        let sched2 = Schedule(ParsedSchedule {
+            times: vec![time!(18:00:00)],
+            days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+            weeks: Some(WeekVariant::Odd),
+        });
+
+        let multi_sched = MultiSchedule(vec![
+            ParsedSchedule {
                 times: vec![time!(06:00:00), time!(13:00:00)],
                 days: Some(vec![
                     (Weekday::Monday, Some(WeekdayModifier::Third)),
@@ -592,35 +601,12 @@ mod tests {
                 ]),
                 weeks: None,
             },
-        };
-
-        let sched2 = Schedule {
-            base: datetime!(2222-12-01 00:00:00 UTC),
-            spec: ParsedSchedule {
+            ParsedSchedule {
                 times: vec![time!(18:00:00)],
                 days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
                 weeks: Some(WeekVariant::Odd),
             },
-        };
-
-        let multi_sched = MultiSchedule {
-            base: datetime!(2021-06-09 13:00:00 UTC),
-            schedules: vec![
-                ParsedSchedule {
-                    times: vec![time!(06:00:00), time!(13:00:00)],
-                    days: Some(vec![
-                        (Weekday::Monday, Some(WeekdayModifier::Third)),
-                        (Weekday::Thursday, None),
-                    ]),
-                    weeks: None,
-                },
-                ParsedSchedule {
-                    times: vec![time!(18:00:00)],
-                    days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
-                    weeks: Some(WeekVariant::Odd),
-                },
-            ],
-        };
+        ]);
 
         assert_eq!(multi_sched, sched1 + sched2)
     }

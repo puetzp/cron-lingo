@@ -14,12 +14,12 @@
 //! // Create a schedule from an expression and iterate.
 //! let expr = "at 6:30 AM and 12:30 PM on Mondays and Thursdays";
 //! let schedule1 = Schedule::from_str(expr).unwrap();
-//! assert!(schedule1.iter().next().is_some());
+//! assert!(schedule1.iter().unwrap().next().is_some());
 //!
 //! // Create another schedule, add it to the first, and then iterate.
 //! let schedule2 = Schedule::from_str("at 8 PM on the first Sunday").unwrap();
 //! let combination = schedule1 + schedule2;
-//! assert!(combination.iter().next().is_some());
+//! assert!(combination.iter().unwrap().next().is_some());
 //! ```
 //!
 //! # Expression syntax
