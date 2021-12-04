@@ -6,7 +6,6 @@
 //! ```rust
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
-//! use std::error::Error;
 //!
 //! fn main() -> Result<(), cron_lingo::error::Error> {
 //!     // Create a schedule from an expression and iterate.
