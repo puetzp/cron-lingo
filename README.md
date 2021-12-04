@@ -13,7 +13,7 @@ use std::str::FromStr;
 fn main() {
     let schedule = Schedule::from_str("at 1 PM on Mondays").unwrap();
 
-    for date in schedule.iter().take(3) {
+    for date in schedule.iter().unwrap().take(3) {
         println!("{}", date);
     }
 }
