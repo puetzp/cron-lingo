@@ -10,13 +10,18 @@
 //!
 //! fn main() -> Result<(), cron_lingo::error::Error> {
 //!     // Create a schedule from an expression and iterate.
-//!     let expr = "at 6:30 AM and 12:30 PM on Mondays and Thursdays";
+//!     let expr = "at 6:30 AM on Mondays and Thursdays";
 //!     let schedule1 = Schedule::from_str(expr)?;
 //!     assert!(schedule1.iter()?.next().is_some());
 //!
 //!     // Create another schedule, add it to the first, and then iterate.
 //!     let schedule2 = Schedule::from_str("at 8 PM on the first Sunday")?;
-//!     let combination = schedule1 + schedule2;
+//!     let mut combination = schedule1 + schedule2;
+//!     assert!(combination.iter()?.next().is_some());
+//!
+//!     // Finally add another to the existing collection of schedules.
+//!     let schedule3 = Schedule::from_str("at 12:00 PM on the last Friday")?;
+//!     combination += schedule3;
 //!     assert!(combination.iter()?.next().is_some());
 //!
 //!     Ok(())
