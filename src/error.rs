@@ -2,7 +2,7 @@ use std::error::Error as StdError;
 use std::fmt;
 
 /// A global error type that encapsulates all other, more specific
-/// error types below.
+/// error types.
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -16,9 +16,12 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Self::EmptyExpression => EmptyExpressionError.fmt(f),
+            Self::EmptyExpression => write!(f, "the expression string must not be empty"),
             Self::Syntax(e) => e.fmt(f),
-            Self::UnexpectedEndOfInput => UnexpectedEndOfInputError.fmt(f),
+            Self::UnexpectedEndOfInput => write!(
+                f,
+                "the parser reached the end of the expression but expected more characters"
+            ),
             Self::TimeParse(e) => write!(f, "failed to parse time: {}", e),
             Self::IndeterminateOffset(e) => e.fmt(f),
         }
@@ -26,16 +29,6 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {}
-
-/// Quite self-explanatory. The expression string literal must not be empty.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct EmptyExpressionError;
-
-impl fmt::Display for EmptyExpressionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "the expression string must not be empty")
-    }
-}
 
 /// Generic syntax error. Gives the exact position of the erroneous character
 /// in an expression and points out the expected input.
@@ -57,17 +50,3 @@ impl fmt::Display for SyntaxError {
 }
 
 impl StdError for SyntaxError {}
-
-/// This error indicates that the parser expected more input, but reached
-/// the end of the expression.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct UnexpectedEndOfInputError;
-
-impl fmt::Display for UnexpectedEndOfInputError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "the parser reached the end of the expression but expected more characters"
-        )
-    }
-}
