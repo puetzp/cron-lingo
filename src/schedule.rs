@@ -3,7 +3,7 @@ use crate::parse::parse;
 use crate::types::*;
 use std::iter::Iterator;
 use std::str::FromStr;
-use time::{Duration, OffsetDateTime, PrimitiveDateTime};
+use time::{Duration, OffsetDateTime, PrimitiveDateTime, UtcOffset};
 
 /// A schedule that is built from an expression and can be iterated
 /// in order to compute the next date(s) that match the specification.
@@ -18,6 +18,7 @@ impl Schedule {
             schedule: schedule.clone(),
             current: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
             skip_outdated: true,
+            offset: None,
         };
         Ok(iter)
     }
@@ -56,15 +57,31 @@ pub struct ScheduleIter {
     schedule: ParsedSchedule,
     current: OffsetDateTime,
     skip_outdated: bool,
+    offset: Option<UtcOffset>,
 }
 
 impl ScheduleIter {
     /// By default the `next` method will not return a date that is
-    /// in the past but compute the next future date based on the
-    /// current local time instead. This method allows to change the
-    /// iterators default behaviour.
+    /// in the past but compute the next future data. This method
+    /// allows to change the iterators default behaviour.
     pub fn skip_outdated(mut self, skip: bool) -> ScheduleIter {
         self.skip_outdated = skip;
+        self
+    }
+
+    /// By default the iterator returns dates in the current local
+    /// offset taken from the system. This method allows to change
+    /// the iteration behaviour to compute dates in another offset.
+    pub fn assume_offset(mut self, offset: UtcOffset) -> ScheduleIter {
+        self.offset = Some(offset);
+        self
+    }
+
+    /// Compute dates in the current local offset. This is also the
+    /// default behaviour and can be used to revert changes to this
+    /// behaviour that were made using `assume_offset`.
+    pub fn use_local_offset(mut self) -> ScheduleIter {
+        self.offset = None;
         self
     }
 }
@@ -73,14 +90,22 @@ impl Iterator for ScheduleIter {
     type Item = Result<OffsetDateTime, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(offset) = self.offset {
+            self.current = self.current.to_offset(offset);
+        }
+
         if self.skip_outdated {
-            match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
-                Ok(now) => {
-                    if now > self.current {
-                        self.current = now;
-                    }
-                }
+            let mut now = match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
+                Ok(n) => n,
                 Err(e) => return Some(Err(e)),
+            };
+
+            if let Some(offset) = self.offset {
+                now = now.to_offset(offset);
+            }
+
+            if now > self.current {
+                self.current = now;
             }
         }
 
@@ -118,6 +143,7 @@ impl MultiSchedule {
             schedules: &schedules,
             current: OffsetDateTime::now_local().map_err(Error::IndeterminateOffset)?,
             skip_outdated: true,
+            offset: None,
         };
         Ok(iter)
     }
@@ -167,15 +193,30 @@ pub struct MultiScheduleIter<'a> {
     schedules: &'a [ParsedSchedule],
     current: OffsetDateTime,
     skip_outdated: bool,
+    offset: Option<UtcOffset>,
 }
 
 impl<'a> MultiScheduleIter<'a> {
     /// By default the `next` method will not return a date that is
-    /// in the past but compute the next future date based on the
-    /// current local time instead. This method allows to change the
-    /// iterators default behaviour.
+    /// in the past but compute the next future data. This method
+    /// allows to change the iterators default behaviour.
     pub fn skip_outdated(mut self, skip: bool) -> MultiScheduleIter<'a> {
         self.skip_outdated = skip;
+        self
+    }
+    /// By default the iterator returns dates in the current local
+    /// offset taken from the system. This method allows to change
+    /// the iteration behaviour to compute dates in another offset.
+    pub fn assume_offset(mut self, offset: UtcOffset) -> MultiScheduleIter<'a> {
+        self.offset = Some(offset);
+        self
+    }
+
+    /// Compute dates in the current local offset. This is also the
+    /// default behaviour and can be used to revert changes to this
+    /// behaviour that were made using `assume_offset`.
+    pub fn use_local_offset(mut self) -> MultiScheduleIter<'a> {
+        self.offset = None;
         self
     }
 }
@@ -184,14 +225,22 @@ impl<'a> Iterator for MultiScheduleIter<'a> {
     type Item = Result<OffsetDateTime, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if let Some(offset) = self.offset {
+            self.current = self.current.to_offset(offset);
+        }
+
         if self.skip_outdated {
-            match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
-                Ok(now) => {
-                    if now > self.current {
-                        self.current = now;
-                    }
-                }
+            let mut now = match OffsetDateTime::now_local().map_err(Error::IndeterminateOffset) {
+                Ok(n) => n,
                 Err(e) => return Some(Err(e)),
+            };
+
+            if let Some(offset) = self.offset {
+                now = now.to_offset(offset);
+            }
+
+            if now > self.current {
+                self.current = now;
             }
         }
 
@@ -303,7 +352,7 @@ fn check_date_validity(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use time::macros::{datetime, time};
+    use time::macros::{datetime, offset, time};
     use time::Weekday;
 
     #[test]
@@ -423,6 +472,7 @@ mod tests {
                 weeks: None,
             },
             skip_outdated: false,
+            offset: None,
         };
 
         let result = vec![
@@ -449,6 +499,7 @@ mod tests {
                 weeks: None,
             },
             skip_outdated: false,
+            offset: None,
         };
 
         let result = vec![
@@ -478,6 +529,7 @@ mod tests {
                 weeks: None,
             },
             skip_outdated: false,
+            offset: None,
         };
 
         let result = vec![
@@ -501,6 +553,41 @@ mod tests {
 
     #[test]
     fn test_schedule_iteration_4() {
+        let iterator = ScheduleIter {
+            current: datetime!(2021-06-09 13:00:00 UTC),
+            schedule: ParsedSchedule {
+                times: vec![time!(06:00:00), time!(13:00:00)],
+                days: Some(vec![
+                    (Weekday::Monday, Some(WeekdayModifier::Third)),
+                    (Weekday::Thursday, None),
+                ]),
+                weeks: None,
+            },
+            skip_outdated: false,
+            offset: Some(offset!(+3)),
+        };
+
+        let result = vec![
+            Ok(datetime!(2021-06-10 06:00:00 +3)),
+            Ok(datetime!(2021-06-10 13:00:00 +3)),
+            Ok(datetime!(2021-06-17 06:00:00 +3)),
+            Ok(datetime!(2021-06-17 13:00:00 +3)),
+            Ok(datetime!(2021-06-21 06:00:00 +3)),
+            Ok(datetime!(2021-06-21 13:00:00 +3)),
+            Ok(datetime!(2021-06-24 06:00:00 +3)),
+            Ok(datetime!(2021-06-24 13:00:00 +3)),
+        ];
+
+        assert_eq!(
+            iterator
+                .take(8)
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_schedule_iteration_5() {
         let iterator = MultiScheduleIter {
             current: datetime!(2021-06-09 13:00:00 UTC),
             schedules: &vec![
@@ -519,6 +606,7 @@ mod tests {
                 },
             ],
             skip_outdated: false,
+            offset: None,
         };
 
         let result = vec![
@@ -544,7 +632,7 @@ mod tests {
     }
 
     #[test]
-    fn test_schedule_iteration_5() {
+    fn test_schedule_iteration_6() {
         let iterator = MultiScheduleIter {
             current: datetime!(2021-06-18 13:00:00 UTC),
             schedules: &vec![
@@ -563,6 +651,7 @@ mod tests {
                 },
             ],
             skip_outdated: false,
+            offset: None,
         };
 
         let result = vec![
@@ -589,6 +678,47 @@ mod tests {
         assert_eq!(
             iterator
                 .take(18)
+                .collect::<Vec<Result<OffsetDateTime, Error>>>(),
+            result
+        );
+    }
+
+    #[test]
+    fn test_schedule_iteration_7() {
+        let iterator = MultiScheduleIter {
+            current: datetime!(2021-06-18 13:00:00 UTC),
+            schedules: &vec![
+                ParsedSchedule {
+                    times: vec![time!(06:00:00), time!(18:00:00)],
+                    days: Some(vec![
+                        (Weekday::Monday, Some(WeekdayModifier::Last)),
+                        (Weekday::Thursday, None),
+                    ]),
+                    weeks: None,
+                },
+                ParsedSchedule {
+                    times: vec![time!(18:00:00)],
+                    days: Some(vec![(Weekday::Saturday, Some(WeekdayModifier::Fourth))]),
+                    weeks: None,
+                },
+            ],
+            skip_outdated: false,
+            offset: Some(offset!(+2:30)),
+        };
+
+        let result = vec![
+            Ok(datetime!(2021-06-24 06:00:00 +2:30)),
+            Ok(datetime!(2021-06-24 18:00:00 +2:30)),
+            Ok(datetime!(2021-06-26 18:00:00 +2:30)),
+            Ok(datetime!(2021-06-28 06:00:00 +2:30)),
+            Ok(datetime!(2021-06-28 18:00:00 +2:30)),
+            Ok(datetime!(2021-07-01 06:00:00 +2:30)),
+            Ok(datetime!(2021-07-01 18:00:00 +2:30)),
+        ];
+
+        assert_eq!(
+            iterator
+                .take(7)
                 .collect::<Vec<Result<OffsetDateTime, Error>>>(),
             result
         );

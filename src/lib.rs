@@ -1,11 +1,14 @@
 //! This crate allows to parse a cron-like, human-readable expression.
 //! The resulting object can be turned into an iterator to compute the next date
-//! (as a `time::OffsetDateTime`) one at a time.
+//! (as a `time::OffsetDateTime`) one at a time. By default dates are computed
+//! in the current local offset, but the iterator can be configured to use other
+//! offsets.
 //!
 //! # Example
 //! ```rust
 //! use cron_lingo::Schedule;
 //! use std::str::FromStr;
+//! use time::macros::offset;
 //!
 //! fn main() -> Result<(), cron_lingo::error::Error> {
 //!     // Create a schedule from an expression and iterate.
@@ -23,6 +26,12 @@
 //!     combination += schedule3;
 //!     assert!(combination.iter()?.next().is_some());
 //!
+//!     // The examples above assume that the current local offset is to
+//!     // be used to determine the dates, but dates can also be computed
+//!     // in different offsets.
+//!     let expr = "at 6:30 AM on Mondays and Thursdays";
+//!     let schedule = Schedule::from_str(expr)?;
+//!     assert!(schedule.iter()?.assume_offset(offset!(+3)).next().is_some());
 //!     Ok(())
 //! }
 //! ```
