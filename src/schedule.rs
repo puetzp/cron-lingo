@@ -149,6 +149,13 @@ impl MultiSchedule {
     }
 }
 
+impl From<Schedule> for MultiSchedule {
+    fn from(schedule: Schedule) -> Self {
+        let Schedule(schedule) = schedule;
+        MultiSchedule(vec![schedule])
+    }
+}
+
 impl std::ops::Add<Schedule> for MultiSchedule {
     type Output = Self;
 
